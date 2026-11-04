@@ -2,7 +2,7 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { getTranslations } from 'next-intl/server';
-import { DemoForm } from '../../components/DemoForm';
+
 import { Link } from '../../i18n/navigation';
 
 export default async function HomePage() {
@@ -25,7 +25,6 @@ export default async function HomePage() {
             </Link>
           </Stack>
         </Stack>
-        <DemoForm />
       </Stack>
     </Container>
   );
