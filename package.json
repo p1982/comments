@@ -71,9 +71,12 @@
     "tslib": "^2.3.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.58.0",
-    "webpack": "~5.110.0",
+    "webpack": "~5.112.2",
     "webpack-cli": "^7.0.0",
     "webpack-dev-server": "^5.2.1"
+  },
+  "overrides": {
+    "@apollo/server-plugin-landing-page-graphql-playground": "$@apollo/server-plugin-landing-page-graphql-playground"
   },
   "packageManager": "npm@10.9.4",
   "workspaces": [
@@ -84,6 +87,7 @@
     "@apollo/client": "^4.3.6",
     "@apollo/client-integration-nextjs": "^0.14.5",
     "@apollo/server": "^5.0.0",
+    "@apollo/server-plugin-landing-page-graphql-playground": "file:tools/apollo-playground-plugin",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^7.0.2",
