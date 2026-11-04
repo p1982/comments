@@ -10,8 +10,6 @@ export default [
     files: ['**/*.{ts,tsx}'],
     rules: {
       '@next/next/no-html-link-for-pages': 'error',
-      // next-intl currently marks requestLocale/setRequestLocale while migrating
-      '@typescript-eslint/no-deprecated': 'off',
     },
   },
   {
