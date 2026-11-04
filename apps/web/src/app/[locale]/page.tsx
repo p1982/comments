@@ -1,13 +1,11 @@
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { DemoForm } from '../../components/DemoForm';
+import { getTranslations } from 'next-intl/server';
+
 import { Link } from '../../i18n/navigation';
 
-export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params;
-  setRequestLocale(locale);
+export default async function HomePage() {
   const t = await getTranslations('HomePage');
 
   return (
@@ -27,7 +25,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Link>
           </Stack>
         </Stack>
-        <DemoForm />
       </Stack>
     </Container>
   );
