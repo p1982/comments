@@ -1,0 +1,11 @@
+{
+  "HomePage": {
+    "title": "Comments",
+    "subtitle": "NX monorepo with Nest, Next, MUI and TypeORM",
+    "nameLabel": "Name",
+    "messageLabel": "Message",
+    "submit": "Submit",
+    "nameRequired": "Name is required",
+    "messageRequired": "Message is required"
+  }
+}

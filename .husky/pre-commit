@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+set -e
+
+echo "▶ pre-commit: branch name"
+node scripts/check-branch-name.cjs
+
+echo "▶ pre-commit: lint-staged"
+npx lint-staged

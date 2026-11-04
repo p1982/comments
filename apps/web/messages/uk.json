@@ -1,0 +1,11 @@
+{
+  "HomePage": {
+    "title": "Коментарі",
+    "subtitle": "NX monorepo з Nest, Next, MUI та TypeORM",
+    "nameLabel": "Імʼя",
+    "messageLabel": "Повідомлення",
+    "submit": "Надіслати",
+    "nameRequired": "Імʼя обовʼязкове",
+    "messageRequired": "Повідомлення обовʼязкове"
+  }
+}

@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -e
+
+echo "▶ commit-msg: conventional commit"
+npx --no -- commitlint --edit "$1"
