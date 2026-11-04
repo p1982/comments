@@ -4,8 +4,11 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
+import { APP_FILTER } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ERROR_CODES } from '../common/filter/error-messages';
+import { GlobalExceptionFilter } from '../common/filter/global-exception.filter';
 
 @Module({
   imports: [
@@ -13,12 +16,21 @@ import { AppService } from './app.service';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
-    GraphQLModule.forRoot<ApolloDriverConfig>({
+
+    GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-      sortSchema: true,
-      playground: process.env['NODE_ENV'] !== 'production',
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+        sortSchema: true,
+        playground: config.get<string>('NODE_ENV') !== 'production',
+        formatError: (error) => ({
+          message: error.message,
+          code: error.extensions?.['code'] ?? ERROR_CODES.internalServerError,
+        }),
+      }),
     }),
+
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -34,7 +46,15 @@ import { AppService } from './app.service';
       }),
     }),
   ],
+
   controllers: [AppController],
-  providers: [AppService],
+
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}
