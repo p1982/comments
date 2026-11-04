@@ -1,19 +1,20 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app/app.module';
-import { ENV } from './config/env';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
 
-  const apiVersion = ENV.API_VERSION;
-  const port = ENV.PORT;
+  const apiVersion = config.get<string>('API_VERSION', '1');
+  const port = config.get<number>('PORT', 3000);
   const apiBaseUrl = `http://localhost:${String(port)}`;
 
   app.setGlobalPrefix(`api/v${apiVersion}`);
   app.enableCors({
-    origin: ENV.CORS_ORIGIN,
+    origin: config.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
     credentials: true,
   });
   app.useGlobalPipes(
@@ -26,7 +27,7 @@ async function bootstrap() {
 
   await app.listen(port);
 
-  if (ENV.NX_READY_SIGNAL_SOCKET) {
+  if (config.get<string>('NX_READY_SIGNAL_SOCKET', 'false') === 'true') {
     try {
       const load = new Function('s', 'return import(s)') as (
         s: string,
