@@ -7,7 +7,7 @@ import { ThemeProvider as StyledThemeProvider } from 'styled-components';
 import { theme } from '../../lib/theme';
 import { StyledComponentsRegistry } from './StyledComponentsRegistry';
 
-export function AppProviders({ children }: { children: React.ReactNode }) {
+export const AppProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <StyledComponentsRegistry>
       <AppRouterCacheProvider>
@@ -20,4 +20,4 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       </AppRouterCacheProvider>
     </StyledComponentsRegistry>
   );
-}
+};

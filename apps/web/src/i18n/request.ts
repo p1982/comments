@@ -1,17 +1,32 @@
 import { hasLocale } from 'next-intl';
 import { getRequestConfig } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import * as nextRootParams from 'next/root-params';
+
 import { routing } from './routing';
 
-export default getRequestConfig(async ({ requestLocale }) => {
-  const requested = await requestLocale;
-  const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
+// next/root-params is a compiler stub; concrete exports live in .next/types.
+const rootParams = nextRootParams as {
+  locale: () => Promise<string | undefined>;
+};
 
-  const messages = (await import(`../../messages/${locale}.json`)) as {
+export default getRequestConfig(async ({ locale }) => {
+  let resolvedLocale = locale;
+
+  if (!resolvedLocale) {
+    const paramValue = await rootParams.locale();
+    if (!hasLocale(routing.locales, paramValue)) {
+      notFound();
+    }
+    resolvedLocale = paramValue;
+  }
+
+  const messages = (await import(`../../messages/${resolvedLocale}.json`)) as {
     default: Record<string, unknown>;
   };
 
   return {
-    locale,
+    locale: resolvedLocale,
     messages: messages.default,
   };
 });
