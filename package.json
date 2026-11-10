@@ -4,6 +4,9 @@
   "license": "MIT",
   "scripts": {
     "dev": "nx run-many -t serve,dev -p api,web --parallel=2",
+    "migration:generate": "node scripts/typeorm.cjs migration:generate apps/api/src/database/migrations/migration -d apps/api/src/database/data-source.ts",
+    "migration:run": "node scripts/typeorm.cjs migration:run -d apps/api/src/database/data-source.ts",
+    "migration:revert": "node scripts/typeorm.cjs migration:revert -d apps/api/src/database/data-source.ts",
     "dev:api": "nx serve api",
     "dev:web": "nx dev web",
     "build": "nx run-many -t build --all",
@@ -88,6 +91,7 @@
     "@apollo/client-integration-nextjs": "^0.14.5",
     "@apollo/server": "^5.0.0",
     "@apollo/server-plugin-landing-page-graphql-playground": "file:tools/apollo-playground-plugin",
+    "@as-integrations/express5": "^1.1.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^7.0.2",
