@@ -3,6 +3,9 @@
   "compilerOptions": {
     "outDir": "dist",
     "types": ["node"],
+    "paths": {
+      "@app/*": ["./src/*"]
+    },
     "rootDir": "src",
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
     "experimentalDecorators": true,
