@@ -23,7 +23,7 @@ import { getDataSource } from '@app/database/data-source';
       driver: ApolloDriver,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+        autoSchemaFile: join(process.cwd(), 'apps/api/schema.gql'),
         sortSchema: true,
         playground: config.get<string>('NODE_ENV') !== 'production',
         formatError: (error) => ({

@@ -11,4 +11,4 @@ package-lock.json
 .env.*
 
 # NestJS GraphQL writes this on API start
-src/schema.gql
+apps/api/schema.gql
