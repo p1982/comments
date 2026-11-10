@@ -11,6 +11,12 @@ NX monorepo: **NestJS** API + **Next.js** web, TypeORM/PostgreSQL, MUI, react-ho
 | Web      | Next.js App Router, MUI, styled-components, react-hook-form, next-intl                                   |
 | Quality  | Strict TS (`exactOptionalPropertyTypes`, `verbatimModuleSyntax`), ESLint strictTypeChecked, Prettier, CI |
 
+## Database
+
+Target schema for comments: `users`, `comments`, `attachments`, `outbox_events`.
+
+![Comments database schema](https://res.cloudinary.com/dkdsf8hw3/image/upload/v1794220496/comments_db_ddj6ct.png)
+
 ## Structure
 
 ```
