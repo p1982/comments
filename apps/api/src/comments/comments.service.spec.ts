@@ -12,7 +12,7 @@ describe('CommentsService', () => {
       return await callback(manager);
     }),
   };
-  const usersRepository = { create: jest.fn() };
+  const usersRepository = { create: jest.fn(), findByEmail: jest.fn() };
   const commentsRepository = { create: jest.fn() };
   const service = new CommentsService(
     dataSource as never,
@@ -40,9 +40,10 @@ describe('CommentsService', () => {
       return await callback(manager);
     });
     jest.spyOn(crypto, 'randomUUID').mockReturnValue(savedComment.id);
+    usersRepository.findByEmail.mockResolvedValue(null);
   });
 
-  it('creates a user inside the transaction when the request has none', async () => {
+  it('creates a user inside the transaction when the email is unknown', async () => {
     const savedUser = {
       id: 'user-1',
       fullName: 'Ann',
@@ -61,6 +62,7 @@ describe('CommentsService', () => {
       homepage: 'https://ann.example',
       parentId: null,
     });
+    expect(usersRepository.findByEmail).toHaveBeenCalledWith('ann@example.com');
     expect(usersRepository.create).toHaveBeenCalledWith(
       {
         email: 'ann@example.com',
@@ -71,7 +73,44 @@ describe('CommentsService', () => {
     );
   });
 
-  it('keeps the signed-in user and stores an empty homepage', async () => {
+  it('reuses the user found by email', async () => {
+    const existingUser = {
+      id: 'user-9',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.findByEmail.mockResolvedValue(existingUser);
+    commentsRepository.create.mockResolvedValue({ ...savedComment, userId: 'user-9' });
+
+    await service.createComment(comment, null);
+
+    expect(usersRepository.create).not.toHaveBeenCalled();
+    expect(commentsRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-9' }),
+      manager,
+    );
+  });
+
+  it('stores an empty homepage when the form omits it', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: '',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+
+    await service.createComment({ ...comment, homepage: undefined }, null);
+
+    expect(usersRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ homepage: '' }),
+      manager,
+    );
+  });
+
+  it('keeps the signed-in user', async () => {
     const savedUser = {
       id: 'user-1',
       fullName: 'Ann',
@@ -82,6 +121,7 @@ describe('CommentsService', () => {
 
     await service.createComment({ ...comment, homepage: undefined }, savedUser);
 
+    expect(usersRepository.findByEmail).toHaveBeenCalledWith('ann@example.com');
     expect(usersRepository.create).not.toHaveBeenCalled();
     expect(commentsRepository.create).toHaveBeenCalledWith(
       {
