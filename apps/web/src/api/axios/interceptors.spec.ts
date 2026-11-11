@@ -115,7 +115,7 @@ describe('axios interceptors', () => {
 
     await expect(handlers.rejected(error)).resolves.toEqual({ data: { ok: true } });
     expect(post).toHaveBeenCalledWith(
-      'http://localhost:3001/api/1/auth/refresh',
+      `${API_CONFIG.baseURL ?? ''}${ENDPOINTS.REFRESH}`,
       {},
       { withCredentials: true },
     );
