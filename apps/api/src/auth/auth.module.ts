@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Module } from '@nestjs/common';
 
 import { TokenService } from './services/jwt.service';
-import { UsersModule } from '@app/users/user.module';
+import { UsersModule } from '@app/users/users.module';
 
 @Module({
   imports: [

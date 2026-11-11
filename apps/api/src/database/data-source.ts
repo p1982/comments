@@ -4,7 +4,7 @@ import { config as loadEnv } from 'dotenv';
 import { join } from 'path';
 
 import { CommentsEntity } from '@app/comments/entity/comments.entity';
-import { UserEntity } from '@app/users/entity/user.entity';
+import { UsersEntity } from '@app/users/entity/users.entity';
 import { AttachmentsEntity } from '@app/attachments/entity/attachments.entity';
 import { OutboxEventsEntity } from '@app/outbox/entity/outbox.entity';
 
@@ -19,7 +19,7 @@ export const getDataSource = (config: ConfigService): DataSourceOptions => ({
   username: config.get<string>('DB_USER', 'postgres'),
   password: config.get<string>('DB_PASSWORD', '1'),
   database: config.get<string>('DB_NAME', 'comments'),
-  entities: [CommentsEntity, UserEntity, AttachmentsEntity, OutboxEventsEntity],
+  entities: [CommentsEntity, UsersEntity, AttachmentsEntity, OutboxEventsEntity],
   migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
   synchronize: false,
 });

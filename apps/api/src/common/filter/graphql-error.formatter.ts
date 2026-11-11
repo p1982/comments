@@ -1,4 +1,4 @@
-import { HttpException, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   GraphQLError,
@@ -9,9 +9,11 @@ import {
 import { ERROR_CODES, ERROR_MESSAGES, HTTP_ERROR_CODES } from './error-messages';
 
 const codeForStatus = (status: number): string => {
+  const serverError: number = HttpStatus.INTERNAL_SERVER_ERROR;
+
   return (
     HTTP_ERROR_CODES[status] ??
-    (status >= 500 ? ERROR_CODES.INTERNAL_SERVER_ERROR : ERROR_CODES.BAD_REQUEST)
+    (status >= serverError ? ERROR_CODES.INTERNAL_SERVER_ERROR : ERROR_CODES.BAD_REQUEST)
   );
 };
 

@@ -4,7 +4,7 @@ import { SoftDeleteTableEntity } from '@app/common/entities/base.entity';
 import { CommentsEntity } from '@app/comments/entity/comments.entity';
 
 @Entity('users')
-export class UserEntity extends SoftDeleteTableEntity {
+export class UsersEntity extends SoftDeleteTableEntity {
   @Index()
   @Column({ name: 'full_name', type: 'varchar', length: 100 })
   fullName!: string;

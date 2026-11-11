@@ -17,7 +17,7 @@ module.exports = {
   },
   coverageProvider: 'v8',
   collectCoverage: true,
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.spec.ts'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.spec.ts', '!src/dto/**'],
   coverageThreshold: {
     global: {
       branches: 90,

@@ -11,7 +11,8 @@ import { AppService } from './app.service';
 import { ERROR_CODES } from '../common/filter/error-messages';
 import { GlobalExceptionFilter } from '../common/filter/global-exception.filter';
 import { getDataSource } from '@app/database/data-source';
-import { UsersModule } from '@app/users/user.module';
+import { CommentsModule } from '@app/comments/comments.module';
+import { UsersModule } from '@app/users/users.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { UsersModule } from '@app/users/user.module';
       inject: [ConfigService],
       useFactory: getDataSource,
     }),
+    CommentsModule,
     UsersModule,
   ],
 

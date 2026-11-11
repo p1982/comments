@@ -1,4 +1,5 @@
 export enum ENDPOINTS {
-  'REFRESH' = '/auth/refresh',
-  'SIGNIN' = '/auth/signin',
+  REFRESH = '/auth/refresh',
+  SIGNIN = '/auth/signin',
+  COMMENTS = '/comments',
 }
