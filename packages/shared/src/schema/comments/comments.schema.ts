@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { sanitizeHtml } from './html.schema.js';
+import { isWellFormedHtml } from './xhtml.schema.js';
 
 export const commentsSchema = z.object({
   fullName: z
@@ -23,6 +24,9 @@ export const commentsSchema = z.object({
     .string()
     .trim()
     .max(10000, 'Content is too long')
+    .refine(isWellFormedHtml, {
+      message: 'HTML tags must be closed and correctly nested',
+    })
     .superRefine((html, ctx) => {
       const sanitized = sanitizeHtml(html);
 
