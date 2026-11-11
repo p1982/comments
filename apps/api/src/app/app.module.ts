@@ -11,6 +11,7 @@ import { AppService } from './app.service';
 import { ERROR_CODES } from '../common/filter/error-messages';
 import { GlobalExceptionFilter } from '../common/filter/global-exception.filter';
 import { getDataSource } from '@app/database/data-source';
+import { UsersModule } from '@app/users/user.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { getDataSource } from '@app/database/data-source';
       inject: [ConfigService],
       useFactory: getDataSource,
     }),
+    UsersModule,
   ],
 
   controllers: [AppController],
