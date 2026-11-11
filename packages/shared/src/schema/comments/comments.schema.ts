@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { sanitizeHtml } from './html.schema.js';
+
 export const commentsSchema = z.object({
   fullName: z
     .string()
@@ -17,7 +19,20 @@ export const commentsSchema = z.object({
       z.url().max(500, { message: 'Homepage URL must be less than 500 characters long' }),
     ])
     .optional(),
-  text: z.string().trim().min(1, { message: 'Comment text is required' }),
+  text: z
+    .string()
+    .trim()
+    .max(10000, 'Content is too long')
+    .superRefine((html, ctx) => {
+      const sanitized = sanitizeHtml(html);
+
+      if (sanitized !== html) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'HTML contains unsupported tags or attributes',
+        });
+      }
+    }),
 });
 
 export type CommentsSchema = z.infer<typeof commentsSchema>;

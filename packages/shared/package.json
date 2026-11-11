@@ -16,6 +16,8 @@
     }
   },
   "dependencies": {
+    "dompurify": "^3.4.17",
+    "jsdom": "^29.1.1",
     "tslib": "^2.3.0",
     "zod": "^4.6.7"
   }
