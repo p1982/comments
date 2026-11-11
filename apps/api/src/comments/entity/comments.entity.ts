@@ -1,7 +1,7 @@
 import { Entity, Column, Index, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 
 import { SoftDeleteTableEntity } from '@app/common/entities/base.entity';
-import { UserEntity } from '@app/users/entity/user.entity';
+import { UsersEntity } from '@app/users/entity/users.entity';
 import { AttachmentsEntity } from '@app/attachments/entity/attachments.entity';
 
 @Entity('comments')
@@ -12,7 +12,7 @@ export class CommentsEntity extends SoftDeleteTableEntity {
   userId!: string;
 
   @Index()
-  @Column({ name: 'parent_id', type: 'uuid' })
+  @Column({ name: 'parent_id', type: 'uuid', nullable: true })
   parentId!: string | null;
 
   @Column({ name: 'root_id', type: 'uuid' })
@@ -21,9 +21,9 @@ export class CommentsEntity extends SoftDeleteTableEntity {
   @Column({ name: 'text', type: 'text' })
   text!: string;
 
-  @ManyToOne('UserEntity', 'comments')
+  @ManyToOne('UsersEntity', 'comments')
   @JoinColumn({ name: 'user_id' })
-  user!: UserEntity;
+  user!: UsersEntity;
 
   @OneToMany('AttachmentsEntity', 'comments')
   attachments!: AttachmentsEntity[];

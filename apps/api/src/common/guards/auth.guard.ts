@@ -1,12 +1,12 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { TokenService } from '@app/auth/services/jwt.service';
-import { UserRepository } from '@app/users/repository/user.repository';
-import { UserEntity } from '@app/users/entity/user.entity';
+import { UsersRepository } from '@app/users/repository/users.repository';
+import { UsersEntity } from '@app/users/entity/users.entity';
 import { ERROR_MESSAGES } from '../filter/error-messages';
 
-type RequestWithUser = Omit<Request, 'cookies'> & {
-  user?: UserEntity;
+export type RequestWithUser = Omit<Request, 'cookies'> & {
+  user?: UsersEntity | null;
   cookies?: {
     access_token?: string;
   };
@@ -16,7 +16,7 @@ type RequestWithUser = Omit<Request, 'cookies'> & {
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly tokenService: TokenService,
-    private readonly userRepository: UserRepository,
+    private readonly usersRepository: UsersRepository,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -25,7 +25,7 @@ export class AuthGuard implements CanActivate {
 
     if (token) {
       const payload = this.tokenService.decodeToken(token);
-      const user = await this.userRepository.findById(payload.id);
+      const user = await this.usersRepository.findById(payload.id);
 
       if (!user) {
         throw new UnauthorizedException(ERROR_MESSAGES.userNotFound);

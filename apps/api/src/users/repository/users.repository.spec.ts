@@ -1,22 +1,25 @@
-import type { Repository } from 'typeorm';
+import type { EntityManager, Repository } from 'typeorm';
 
-import type { UserEntity } from '../entity/user.entity';
-import { UserRepository } from './user.repository';
+import type { UsersEntity } from '../entity/users.entity';
+import { UsersRepository } from './users.repository';
 
-describe('UserRepository', () => {
+describe('UsersRepository', () => {
   const repo = {
     findOne: jest.fn(),
-    create: jest.fn((data: Partial<UserEntity>) => data),
+    create: jest.fn((data: Partial<UsersEntity>) => data),
     save: jest.fn(),
   };
-  const users = new UserRepository(repo as unknown as Repository<UserEntity>);
+  const manager = {
+    getRepository: jest.fn(() => repo),
+  } as unknown as EntityManager;
+  const users = new UsersRepository(repo as unknown as Repository<UsersEntity>);
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('finds a user by normalized email', async () => {
-    const user = { id: '1' } as UserEntity;
+    const user = { id: '1' } as UsersEntity;
     repo.findOne.mockResolvedValue(user);
 
     await expect(users.findByEmail('  Foo@Mail.com ')).resolves.toBe(user);
@@ -27,7 +30,7 @@ describe('UserRepository', () => {
   });
 
   it('finds a user by id', async () => {
-    const user = { id: '1' } as UserEntity;
+    const user = { id: '1' } as UsersEntity;
     repo.findOne.mockResolvedValue(user);
 
     await expect(users.findById('1')).resolves.toBe(user);
@@ -38,26 +41,29 @@ describe('UserRepository', () => {
   });
 
   it('returns the reloaded user after create', async () => {
-    const saved = { id: '1', email: 'a@b.c' } as UserEntity;
-    const reloaded = { id: '1', email: 'a@b.c', fullName: 'Ann' } as UserEntity;
+    const saved = { id: '1', email: 'a@b.c' } as UsersEntity;
+    const reloaded = { id: '1', email: 'a@b.c', fullName: 'Ann' } as UsersEntity;
     repo.save.mockResolvedValue(saved);
     repo.findOne.mockResolvedValue(reloaded);
 
     await expect(
-      users.create({ email: '  A@B.C ', fullname: 'Ann', homepage: 'https://example.com' }),
+      users.create(
+        { email: '  A@B.C ', fullName: 'Ann', homepage: 'https://example.com' },
+        manager,
+      ),
     ).resolves.toBe(reloaded);
     expect(repo.create).toHaveBeenCalledWith({
       email: 'a@b.c',
-      fullname: 'Ann',
+      fullName: 'Ann',
       homepage: 'https://example.com',
     });
   });
 
   it('returns the saved user when reload finds nothing', async () => {
-    const saved = { id: '1', email: 'a@b.c' } as UserEntity;
+    const saved = { id: '1', email: 'a@b.c' } as UsersEntity;
     repo.save.mockResolvedValue(saved);
     repo.findOne.mockResolvedValue(null);
 
-    await expect(users.create({ email: 'a@b.c', fullname: 'Ann' })).resolves.toBe(saved);
+    await expect(users.create({ email: 'a@b.c', fullName: 'Ann' }, manager)).resolves.toBe(saved);
   });
 });
