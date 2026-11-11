@@ -39,6 +39,8 @@ const attachHooks = (purify: DOMPurify) => {
   });
 };
 
+// Jest 30 перехоплює require і не завантажує ESM-залежність jsdom. Браузерний шлях покритий тестом.
+/* v8 ignore start */
 const createNodePurify = (): DOMPurify => {
   const require = createRequire(import.meta.url);
   const { JSDOM } = require('jsdom') as JsdomModule;
@@ -48,6 +50,7 @@ const createNodePurify = (): DOMPurify => {
 
   return purify;
 };
+/* v8 ignore stop */
 
 const createBrowserPurify = (): DOMPurify => {
   const purify = createDOMPurify(window);

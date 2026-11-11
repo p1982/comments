@@ -40,7 +40,7 @@ jobs:
       - name: Typecheck
         run: npx nx run-many -t typecheck -p api,shared
 
-      - name: Test
+      - name: Test and coverage
         run: npx nx run-many -t test --all --passWithNoTests
 
       - name: Build
