@@ -12,9 +12,8 @@ const attributesAllowed = (tag: string, raw: string): boolean => {
   let rest = attrs;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(attrs)) !== null) {
-    const name = match[1]?.toLowerCase();
-    const value = match[2];
-    if (!name || value === undefined) return false;
+    const name = String(match[1]).toLowerCase();
+    const value = String(match[2]);
     if (seen.has(name) || !(ALLOWED_ATTRIBUTES as readonly string[]).includes(name)) return false;
     if (name === 'href' && !isHttpUrl(value)) return false;
     seen.add(name);
@@ -36,10 +35,10 @@ export const isWellFormedHtml = (html: string): boolean => {
       continue;
     }
     const tag = TAG_PATTERN.exec(html.slice(index));
-    const raw = tag?.[0];
-    const name = tag?.[1]?.toLowerCase();
-    if (!raw || !name) return false;
-    const attrs = tag[2] ?? '';
+    if (tag === null) return false;
+    const raw = tag[0];
+    const name = String(tag[1]).toLowerCase();
+    const attrs = String(tag[2]);
     if (!isAllowedTag(name)) return false;
     if (raw.startsWith('</')) {
       if (attrs.trim() !== '' || stack.pop() !== name) return false;

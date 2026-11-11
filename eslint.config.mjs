@@ -26,7 +26,14 @@ export default tseslint.config(
     extends: [...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: [
+            'apps/web/src/api/axios/*.spec.ts',
+            'apps/web/src/api/services/*.spec.ts',
+            'apps/web/src/config/*.spec.ts',
+          ],
+          defaultProject: 'apps/web/tsconfig.spec.json',
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
