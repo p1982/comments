@@ -7,7 +7,7 @@ import { ERROR_MESSAGES } from '../filter/error-messages';
 
 type RequestWithUser = Omit<Request, 'cookies'> & {
   user?: UserEntity;
-  cookies: {
+  cookies?: {
     access_token?: string;
   };
 };
@@ -21,7 +21,7 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
-    const token = request.cookies.access_token;
+    const token = request.cookies?.access_token;
 
     if (token) {
       const payload = this.tokenService.decodeToken(token);
