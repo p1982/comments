@@ -26,8 +26,8 @@ describe('CommentsService', () => {
     text: 'Hello',
   };
   const savedComment = {
-    id: '11111111-1111-1111-1111-111111111111',
-    rootId: '11111111-1111-1111-1111-111111111111',
+    id: '11111111-1111-1111-1111-111111111111' as const,
+    rootId: '11111111-1111-1111-1111-111111111111' as const,
     parentId: null,
     userId: 'user-1',
     text: 'Hello',
