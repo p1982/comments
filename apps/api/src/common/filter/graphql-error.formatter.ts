@@ -11,7 +11,7 @@ import { ERROR_CODES, ERROR_MESSAGES, HTTP_ERROR_CODES } from './error-messages'
 const codeForStatus = (status: number): string => {
   return (
     HTTP_ERROR_CODES[status] ??
-    (status >= 500 ? ERROR_CODES.internalServerError : ERROR_CODES.badRequest)
+    (status >= 500 ? ERROR_CODES.INTERNAL_SERVER_ERROR : ERROR_CODES.BAD_REQUEST)
   );
 };
 
@@ -49,7 +49,7 @@ export const createGraphQLErrorFormatter = (configService: ConfigService) => {
       isProduction ? ERROR_MESSAGES.internalServerError : message,
       formatted,
       {
-        code: ERROR_CODES.internalServerError,
+        code: ERROR_CODES.INTERNAL_SERVER_ERROR,
       },
     );
   };

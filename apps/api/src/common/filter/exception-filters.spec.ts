@@ -53,9 +53,9 @@ describe('exception filters', () => {
       }),
     );
 
-    expect(badRequest.extensions).toMatchObject({ code: ERROR_CODES.badRequest, statusCode: 400 });
-    expect(unknownClient.extensions).toMatchObject({ code: ERROR_CODES.badRequest });
-    expect(unknownServer.extensions).toMatchObject({ code: ERROR_CODES.internalServerError });
+    expect(badRequest.extensions).toMatchObject({ code: ERROR_CODES.BAD_REQUEST, statusCode: 400 });
+    expect(unknownClient.extensions).toMatchObject({ code: ERROR_CODES.BAD_REQUEST });
+    expect(unknownServer.extensions).toMatchObject({ code: ERROR_CODES.INTERNAL_SERVER_ERROR });
     expect(badRequest.path).toEqual(['health']);
     expect(badRequest.locations).toEqual([{ line: 1, column: 1 }]);
   });
