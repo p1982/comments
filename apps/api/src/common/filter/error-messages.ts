@@ -1,23 +1,31 @@
+import { HttpStatus } from '@nestjs/common';
+
 export const ERROR_MESSAGES = {
   internalServerError: 'Internal server error',
   unknownException: 'Unknown exception',
+  unauthorized: 'Unauthorized',
+  userNotFound: 'User not found',
+  validationError: 'Validation error',
 } as const;
 
 export const ERROR_CODES = {
-  badRequest: 'BAD_REQUEST',
-  unauthenticated: 'UNAUTHENTICATED',
-  forbidden: 'FORBIDDEN',
-  notFound: 'NOT_FOUND',
-  conflict: 'CONFLICT',
-  unprocessableEntity: 'UNPROCESSABLE_ENTITY',
-  internalServerError: 'INTERNAL_SERVER_ERROR',
+  BAD_REQUEST: 'BAD_REQUEST',
+  UNAUTHENTICATED: 'UNAUTHENTICATED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  CONFLICT: 'CONFLICT',
+  UNPROCESSABLE_ENTITY: 'UNPROCESSABLE_ENTITY',
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  UNAUTHORIZED: 'UNAUTHORIZED',
 } as const;
 
 export const HTTP_ERROR_CODES: Record<number, string> = {
-  400: ERROR_CODES.badRequest,
-  401: ERROR_CODES.unauthenticated,
-  403: ERROR_CODES.forbidden,
-  404: ERROR_CODES.notFound,
-  409: ERROR_CODES.conflict,
-  422: ERROR_CODES.unprocessableEntity,
+  [HttpStatus.BAD_REQUEST]: ERROR_CODES.BAD_REQUEST,
+  [HttpStatus.UNAUTHORIZED]: ERROR_CODES.UNAUTHENTICATED,
+  [HttpStatus.FORBIDDEN]: ERROR_CODES.FORBIDDEN,
+  [HttpStatus.NOT_FOUND]: ERROR_CODES.NOT_FOUND,
+  [HttpStatus.CONFLICT]: ERROR_CODES.CONFLICT,
+  [HttpStatus.UNPROCESSABLE_ENTITY]: ERROR_CODES.UNPROCESSABLE_ENTITY,
+  [HttpStatus.INTERNAL_SERVER_ERROR]: ERROR_CODES.INTERNAL_SERVER_ERROR,
 };

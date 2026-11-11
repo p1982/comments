@@ -28,7 +28,7 @@ import { getDataSource } from '@app/database/data-source';
         playground: config.get<string>('NODE_ENV') !== 'production',
         formatError: (error) => ({
           message: error.message,
-          code: error.extensions?.['code'] ?? ERROR_CODES.internalServerError,
+          code: error.extensions?.['code'] ?? ERROR_CODES.INTERNAL_SERVER_ERROR,
         }),
       }),
     }),
