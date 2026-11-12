@@ -83,6 +83,25 @@ describe('commentsSchema', () => {
     });
   });
 
+  describe('parentId', () => {
+    it('accepts a comment without a parent', () => {
+      expect(parse().success).toBe(true);
+    });
+
+    it('accepts a parent id', () => {
+      expect(
+        commentsSchema.safeParse({
+          ...validComment,
+          parentId: '22222222-2222-2222-2222-222222222222',
+        }).success,
+      ).toBe(true);
+    });
+
+    it('rejects a parent id that is not a string', () => {
+      expect(commentsSchema.safeParse({ ...validComment, parentId: 1 }).success).toBe(false);
+    });
+  });
+
   describe('homepage', () => {
     it('accepts an http or https URL', () => {
       expect(parse({ homepage: 'https://example.com/path' }).success).toBe(true);

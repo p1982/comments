@@ -1,5 +1,11 @@
 import type { CommentResponse, CommentsSchema } from '@comments/shared';
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 import { UsersRepository } from '@app/users/repository/users.repository';
@@ -7,6 +13,7 @@ import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 import { UsersEntity } from '@app/users/entity/users.entity';
 import { toCommentResponse } from './dto/comment-response.dto';
 import { CommentsRepository } from './repository/comments.repository';
+import { CommentsEntity } from './entity/comments.entity';
 
 @Injectable()
 export class CommentsService {
@@ -34,11 +41,27 @@ export class CommentsService {
             manager,
           ));
         const id = crypto.randomUUID();
+        let parentId: string | null;
+        let rootId: string;
+        if (!comment.parentId) {
+          parentId = null;
+          rootId = id;
+        } else {
+          const parent: CommentsEntity | null = await this.commentsRepository.findById(
+            comment.parentId,
+          );
+          if (!parent) {
+            throw new NotFoundException(ERROR_MESSAGES.notFound);
+          }
+          parentId = parent.id;
+          rootId = parent.rootId;
+        }
+
         const savedComment = await this.commentsRepository.create(
           {
             id,
-            rootId: id,
-            parentId: null,
+            rootId,
+            parentId,
             userId: savedUser.id,
             text: comment.text,
           },
@@ -47,6 +70,9 @@ export class CommentsService {
         return toCommentResponse(savedComment, savedUser);
       });
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       this.logger.error(error);
       throw new InternalServerErrorException(ERROR_MESSAGES.internalServerError);
     }

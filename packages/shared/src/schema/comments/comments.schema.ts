@@ -14,6 +14,7 @@ export const commentsSchema = z.object({
     .email({ message: 'Invalid email address' })
     .min(1, { message: 'Email is required' })
     .max(255, { message: 'Email must be less than 255 characters long' }),
+  parentId: z.string().optional(),
   homepage: z
     .union([
       z.literal(''),
