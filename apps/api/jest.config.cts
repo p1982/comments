@@ -22,6 +22,8 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.spec.ts',
+    '!src/**/*.e2e-spec.ts',
+    '!src/test/**',
     '!src/**/*.module.ts',
     '!src/main.ts',
     '!src/database/migrations/**',
