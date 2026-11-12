@@ -5,6 +5,7 @@ import { CommentsRepository } from './comments.repository';
 
 describe('CommentsRepository', () => {
   const repo = {
+    find: jest.fn(),
     findOne: jest.fn(),
     create: jest.fn((data: Partial<CommentsEntity>) => data),
     save: jest.fn(),
@@ -23,6 +24,47 @@ describe('CommentsRepository', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('lists roots with the default page size', async () => {
+    repo.find.mockResolvedValue([]);
+
+    await expect(
+      comments.findAll({ page: 1, limit: 25, sort: 'createdAt', order: 'desc' }),
+    ).resolves.toEqual([]);
+    expect(repo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 0,
+        take: 25,
+        order: { createdAt: 'DESC', id: 'DESC' },
+      }),
+    );
+  });
+
+  it('uses the requested limit and page', async () => {
+    repo.find.mockResolvedValue([]);
+
+    await comments.findAll({ page: 2, limit: 10, sort: 'createdAt', order: 'desc' });
+
+    expect(repo.find).toHaveBeenCalledWith(expect.objectContaining({ skip: 10, take: 10 }));
+  });
+
+  it('sorts by name or email in the requested direction', async () => {
+    repo.find.mockResolvedValue([]);
+
+    await comments.findAll({ page: 1, limit: 25, sort: 'fullName', order: 'asc' });
+    expect(repo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: { user: { fullName: 'ASC' }, createdAt: 'ASC', id: 'ASC' },
+      }),
+    );
+
+    await comments.findAll({ page: 1, limit: 25, sort: 'email', order: 'desc' });
+    expect(repo.find).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        order: { user: { email: 'DESC' }, createdAt: 'DESC', id: 'DESC' },
+      }),
+    );
   });
 
   it('finds a comment by id', async () => {

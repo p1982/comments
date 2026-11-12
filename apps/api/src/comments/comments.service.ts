@@ -1,4 +1,4 @@
-import type { CommentResponse, CommentsSchema } from '@comments/shared';
+import type { CommentResponse, CommentsListQuery, CommentsSchema } from '@comments/shared';
 import {
   HttpException,
   Injectable,
@@ -23,6 +23,19 @@ export class CommentsService {
     private readonly usersRepository: UsersRepository,
     private readonly commentsRepository: CommentsRepository,
   ) {}
+
+  async getComments(query: CommentsListQuery): Promise<CommentResponse[]> {
+    try {
+      const comments = await this.commentsRepository.findAll(query);
+      return comments.map((comment) => toCommentResponse(comment, comment.user));
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(error);
+      throw new InternalServerErrorException(ERROR_MESSAGES.internalServerError);
+    }
+  }
 
   async createComment(comment: CommentsSchema, user: UsersEntity | null): Promise<CommentResponse> {
     this.logger.log(`Creating comment for ${comment.fullName}`);

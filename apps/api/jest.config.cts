@@ -25,6 +25,7 @@ module.exports = {
     '!src/**/*.module.ts',
     '!src/main.ts',
     '!src/database/migrations/**',
+    '!src/database/seeds/**',
     '!src/auth/**',
   ],
   coverageThreshold: {

@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository } from 'typeorm';
+
+import type { CommentsListQuery } from '@comments/shared';
 
 import { CommentsEntity } from '../entity/comments.entity';
 
@@ -19,6 +21,26 @@ export class CommentsRepository {
     @InjectRepository(CommentsEntity)
     private readonly commentsRepository: Repository<CommentsEntity>,
   ) {}
+
+  async findAll(query: CommentsListQuery): Promise<CommentsEntity[]> {
+    const direction = query.order === 'asc' ? 'ASC' : 'DESC';
+    this.logger.debug(query);
+
+    return await this.commentsRepository.find({
+      where: {
+        parentId: IsNull(),
+      },
+      relations: { user: true },
+      order:
+        query.sort === 'fullName'
+          ? { user: { fullName: direction }, createdAt: direction, id: direction }
+          : query.sort === 'email'
+            ? { user: { email: direction }, createdAt: direction, id: direction }
+            : { createdAt: direction, id: direction },
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
+    });
+  }
 
   async findById(id: string): Promise<CommentsEntity | null> {
     this.logger.debug(`Finding comment by id: ${id}`);

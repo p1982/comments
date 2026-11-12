@@ -13,7 +13,7 @@ describe('CommentsService', () => {
     }),
   };
   const usersRepository = { create: jest.fn(), findByEmail: jest.fn() };
-  const commentsRepository = { create: jest.fn(), findById: jest.fn() };
+  const commentsRepository = { create: jest.fn(), findById: jest.fn(), findAll: jest.fn() };
   const service = new CommentsService(
     dataSource as never,
     usersRepository as never,
@@ -219,6 +219,38 @@ describe('CommentsService', () => {
     expect(commentsRepository.findById).toHaveBeenCalledWith(parentId);
     expect(commentsRepository.create).not.toHaveBeenCalled();
     expect(usersRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('maps listed comments through the comment response', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    commentsRepository.findAll.mockResolvedValue([{ ...savedComment, user: savedUser }]);
+
+    await expect(
+      service.getComments({ page: 1, limit: 25, sort: 'createdAt', order: 'desc' }),
+    ).resolves.toEqual([
+      {
+        id: savedComment.id,
+        text: 'Hello',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        fullName: 'Ann',
+        email: 'ann@example.com',
+        homepage: 'https://ann.example',
+        parentId: null,
+      },
+    ]);
+  });
+
+  it('turns a failed list into an internal server error', async () => {
+    commentsRepository.findAll.mockRejectedValue(new Error('db down'));
+
+    await expect(
+      service.getComments({ page: 1, limit: 25, sort: 'createdAt', order: 'desc' }),
+    ).rejects.toBeInstanceOf(InternalServerErrorException);
   });
 
   it('turns a failed transaction into an internal server error', async () => {
