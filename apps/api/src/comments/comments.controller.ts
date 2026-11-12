@@ -1,4 +1,6 @@
 import {
+  commentSortFields,
+  commentSortOrders,
   commentsListSchema,
   commentsSchema,
   ENDPOINTS,
@@ -18,6 +20,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBody,
+  ApiCookieAuth,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -30,7 +33,6 @@ import { ZodValidationPipe } from '@app/common/pipes/validation.pipe';
 import { CommentsService } from './comments.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { GetCommentsDto } from './dto/get-comments.dto';
 import { AuthGuard, type RequestWithUser } from '@app/common/guards/auth.guard';
 
 @ApiTags(ENDPOINTS.COMMENTS)
@@ -40,10 +42,15 @@ export class CommentsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create a root comment' })
+  @UseGuards(AuthGuard)
+  @ApiCookieAuth('access_token')
+  @ApiOperation({
+    summary: 'Create a comment',
+    description:
+      'Creates a root comment. Pass parentId to reply to any comment. The access_token cookie attaches the signed-in user when it is present.',
+  })
   @ApiBody({ type: CreateCommentDto })
   @ApiCreatedResponse({ type: CommentResponseDto })
-  @UseGuards(AuthGuard)
   createComment(
     @Req() request: RequestWithUser,
     @Body(new ZodValidationPipe(commentsSchema)) body: CommentsSchema,
@@ -54,7 +61,26 @@ export class CommentsController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get root comments' })
-  @ApiQuery({ type: GetCommentsDto })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    schema: { type: 'integer', minimum: 1, default: 1 },
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 25, default: 25 },
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    schema: { enum: [...commentSortFields], default: 'createdAt' },
+  })
+  @ApiQuery({
+    name: 'order',
+    required: false,
+    schema: { enum: [...commentSortOrders], default: 'desc' },
+  })
   @ApiOkResponse({ type: CommentResponseDto, isArray: true })
   getComments(
     @Query(new ZodValidationPipe(commentsListSchema)) query: CommentsListQuery,
