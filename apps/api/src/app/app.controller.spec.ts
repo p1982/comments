@@ -1,25 +1,27 @@
-import { Test } from '@nestjs/testing';
-import type { TestingModule } from '@nestjs/testing';
+import { HttpStatus } from '@nestjs/common';
+import type { Response } from 'express';
+
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import type { HealthService } from './health.service';
 
 describe('AppController', () => {
-  let app: TestingModule;
+  const healthService = { check: jest.fn() };
+  const controller = new AppController(healthService as unknown as HealthService);
+  const response = { status: jest.fn() };
 
-  beforeAll(async () => {
-    app = await Test.createTestingModule({
-      controllers: [AppController],
-      providers: [AppService],
-    }).compile();
+  it('returns 200 when every dependency is up', async () => {
+    const report = { status: 'ok', database: 'up', graphql: 'up', websocket: 'up' };
+    healthService.check.mockResolvedValue(report);
+
+    await expect(controller.getHealth(response as unknown as Response)).resolves.toEqual(report);
+    expect(response.status).toHaveBeenCalledWith(HttpStatus.OK);
   });
 
-  describe('getHealth', () => {
-    it('should return status ok', () => {
-      const appController = app.get(AppController);
-      expect(appController.getHealth()).toEqual({
-        message: 'API is running',
-        status: 'ok',
-      });
-    });
+  it('returns 503 when a dependency is down', async () => {
+    const report = { status: 'error', database: 'down', graphql: 'up', websocket: 'up' };
+    healthService.check.mockResolvedValue(report);
+
+    await expect(controller.getHealth(response as unknown as Response)).resolves.toEqual(report);
+    expect(response.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
   });
 });
