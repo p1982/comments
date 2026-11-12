@@ -1,51 +1,27 @@
-import type { AxiosInstance, AxiosRequestHeaders, AxiosResponse } from 'axios';
+import type { AxiosResponse } from 'axios';
 
-type RequestParams = Record<string, string | number | boolean | undefined>;
-type RequestHeaders = AxiosRequestHeaders | Record<string, string>;
+import { ENDPOINTS, type CommentResponse, type CommentsListQuery } from '@comments/shared';
 
-abstract class AbstractApiServices {
-  protected apiClient: AxiosInstance;
-  constructor(apiClient: AxiosInstance) {
-    this.apiClient = apiClient;
+import axiosInstance from '../axios/axios-instance';
+import AbstractApiServices from './abstract.service';
+
+class CommentsServices extends AbstractApiServices {
+  constructor() {
+    super(axiosInstance);
   }
-  protected async get<T>(
-    url: string,
-    options?: {
-      params?: RequestParams;
-      headers?: RequestHeaders;
-    },
-  ): Promise<AxiosResponse<T>> {
-    return await this.apiClient.get(url, options);
-  }
-  protected async post<T>(
-    url: string,
-    data?: unknown,
-    options?: {
-      params?: RequestParams;
-      headers?: RequestHeaders;
-    },
-  ): Promise<AxiosResponse<T>> {
-    return await this.apiClient.post(url, data, options);
-  }
-  protected async put<T>(
-    url: string,
-    data?: unknown,
-    options?: {
-      params?: RequestParams;
-      headers?: RequestHeaders;
-    },
-  ): Promise<AxiosResponse<T>> {
-    return await this.apiClient.put(url, data, options);
-  }
-  protected async delete<T>(
-    url: string,
-    options?: {
-      params?: RequestParams;
-      headers?: RequestHeaders;
-    },
-  ): Promise<AxiosResponse<T>> {
-    return await this.apiClient.delete(url, options);
+
+  getComments(query: CommentsListQuery): Promise<AxiosResponse<CommentResponse[]>> {
+    return this.get(ENDPOINTS.COMMENTS, {
+      params: {
+        page: query.page,
+        limit: query.limit,
+        sort: query.sort,
+        order: query.order,
+      },
+    });
   }
 }
 
-export default AbstractApiServices;
+const commentsService = new CommentsServices();
+
+export default commentsService;

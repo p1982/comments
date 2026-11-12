@@ -1,5 +1,4 @@
 /// <reference lib="dom" />
-import { createRequire } from 'node:module';
 import createDOMPurify, { type Config, type DOMPurify, type WindowLike } from 'dompurify';
 
 import { ALLOWED_TAGS, ALLOWED_ATTRIBUTES, isHttpUrl } from './constants.js';
@@ -42,6 +41,7 @@ const attachHooks = (purify: DOMPurify) => {
 // Jest 30 перехоплює require і не завантажує ESM-залежність jsdom. Браузерний шлях покритий тестом.
 /* v8 ignore start */
 const createNodePurify = (): DOMPurify => {
+  const { createRequire } = process.getBuiltinModule('module');
   const require = createRequire(import.meta.url);
   const { JSDOM } = require('jsdom') as JsdomModule;
   const purify = createDOMPurify(new JSDOM('').window);

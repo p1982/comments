@@ -1,43 +1,31 @@
-import type { AxiosInstance } from 'axios';
+import { ENDPOINTS } from '@comments/shared';
+import type { AxiosResponse } from 'axios';
 
-import AbstractApiServices from './comments.service';
+import axiosInstance from '../axios/axios-instance';
+import commentsService from './comments.service';
 
-class CommentsApi extends AbstractApiServices {
-  list() {
-    return this.get('/comments', { params: { page: 1 } });
-  }
+describe('commentsService', () => {
+  it('loads comments with the list query', async () => {
+    const response = { data: [] } as AxiosResponse;
+    const get = jest.spyOn(axiosInstance, 'get').mockResolvedValue(response);
+    const query = {
+      page: 1,
+      limit: 25,
+      sort: 'createdAt' as const,
+      order: 'desc' as const,
+    };
 
-  create(body: unknown) {
-    return this.post('/comments', body);
-  }
+    await expect(commentsService.getComments(query)).resolves.toBe(response);
 
-  update(body: unknown) {
-    return this.put('/comments/1', body);
-  }
+    expect(get).toHaveBeenCalledWith(ENDPOINTS.COMMENTS, {
+      params: {
+        page: query.page,
+        limit: query.limit,
+        sort: query.sort,
+        order: query.order,
+      },
+    });
 
-  remove() {
-    return this.delete('/comments/1');
-  }
-}
-
-describe('CommentsApi', () => {
-  it('forwards get, post, put, and delete to the axios client', async () => {
-    const response = { data: { ok: true } };
-    const get = jest.fn().mockResolvedValue(response);
-    const post = jest.fn().mockResolvedValue(response);
-    const put = jest.fn().mockResolvedValue(response);
-    const remove = jest.fn().mockResolvedValue(response);
-    const client = { get, post, put, delete: remove } as unknown as AxiosInstance;
-    const api = new CommentsApi(client);
-
-    await expect(api.list()).resolves.toBe(response);
-    await expect(api.create({ text: 'hi' })).resolves.toBe(response);
-    await expect(api.update({ text: 'hi' })).resolves.toBe(response);
-    await expect(api.remove()).resolves.toBe(response);
-
-    expect(get).toHaveBeenCalledWith('/comments', { params: { page: 1 } });
-    expect(post).toHaveBeenCalledWith('/comments', { text: 'hi' }, undefined);
-    expect(put).toHaveBeenCalledWith('/comments/1', { text: 'hi' }, undefined);
-    expect(remove).toHaveBeenCalledWith('/comments/1', undefined);
+    get.mockRestore();
   });
 });
