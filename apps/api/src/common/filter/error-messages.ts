@@ -6,6 +6,7 @@ export const ERROR_MESSAGES = {
   unauthorized: 'Unauthorized',
   userNotFound: 'User not found',
   validationError: 'Validation error',
+  notFound: 'Not found',
 } as const;
 
 export const ERROR_CODES = {

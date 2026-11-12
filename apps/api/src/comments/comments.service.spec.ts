@@ -1,4 +1,4 @@
-import { InternalServerErrorException } from '@nestjs/common';
+import { InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 
 import type { UsersEntity } from '@app/users/entity/users.entity';
@@ -13,7 +13,7 @@ describe('CommentsService', () => {
     }),
   };
   const usersRepository = { create: jest.fn(), findByEmail: jest.fn() };
-  const commentsRepository = { create: jest.fn() };
+  const commentsRepository = { create: jest.fn(), findById: jest.fn() };
   const service = new CommentsService(
     dataSource as never,
     usersRepository as never,
@@ -133,6 +133,92 @@ describe('CommentsService', () => {
       },
       manager,
     );
+  });
+
+  it('replies to a root comment and keeps that root id', async () => {
+    const rootId = '22222222-2222-2222-2222-222222222222' as const;
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    commentsRepository.findById.mockResolvedValue({
+      id: rootId,
+      rootId,
+      parentId: null,
+    });
+    commentsRepository.create.mockResolvedValue({
+      ...savedComment,
+      parentId: rootId,
+      rootId,
+    });
+
+    await service.createComment({ ...comment, parentId: rootId }, savedUser);
+
+    expect(commentsRepository.findById).toHaveBeenCalledWith(rootId);
+    expect(commentsRepository.create).toHaveBeenCalledWith(
+      {
+        id: savedComment.id,
+        rootId,
+        parentId: rootId,
+        userId: 'user-1',
+        text: 'Hello',
+      },
+      manager,
+    );
+  });
+
+  it('replies to a reply and keeps the original root id', async () => {
+    const rootId = '22222222-2222-2222-2222-222222222222' as const;
+    const replyId = '33333333-3333-3333-3333-333333333333' as const;
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    commentsRepository.findById.mockResolvedValue({
+      id: replyId,
+      rootId,
+      parentId: rootId,
+    });
+    commentsRepository.create.mockResolvedValue({
+      ...savedComment,
+      parentId: replyId,
+      rootId,
+    });
+
+    await service.createComment({ ...comment, parentId: replyId }, savedUser);
+
+    expect(commentsRepository.create).toHaveBeenCalledWith(
+      {
+        id: savedComment.id,
+        rootId,
+        parentId: replyId,
+        userId: 'user-1',
+        text: 'Hello',
+      },
+      manager,
+    );
+  });
+
+  it('rejects a reply when the parent comment does not exist', async () => {
+    const parentId = '44444444-4444-4444-4444-444444444444';
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    commentsRepository.findById.mockResolvedValue(null);
+
+    await expect(service.createComment({ ...comment, parentId }, savedUser)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(commentsRepository.findById).toHaveBeenCalledWith(parentId);
+    expect(commentsRepository.create).not.toHaveBeenCalled();
+    expect(usersRepository.create).not.toHaveBeenCalled();
   });
 
   it('turns a failed transaction into an internal server error', async () => {
