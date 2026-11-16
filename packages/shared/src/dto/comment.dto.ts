@@ -26,3 +26,11 @@ export interface CommentResponse {
   homepage: string;
   parentId: string | null;
 }
+
+export interface CommentsResult {
+  data: CommentResponse[];
+  total?: number;
+  totalPages?: number;
+  status: 'success' | 'error';
+  message: string;
+}

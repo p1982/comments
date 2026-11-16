@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, IsNull, Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository, Not } from 'typeorm';
 
 import type { CommentsListQuery } from '@comments/shared';
 
@@ -25,7 +25,7 @@ export class CommentsRepository {
   async findByRootId(rootId: string): Promise<CommentsEntity[]> {
     this.logger.debug(`Finding comments by root id: ${rootId}`);
     return await this.commentsRepository.find({
-      where: { rootId },
+      where: { rootId, parentId: Not(IsNull()) },
       select: {
         id: true,
         text: true,
@@ -43,11 +43,11 @@ export class CommentsRepository {
     });
   }
 
-  async findAll(query: CommentsListQuery): Promise<CommentsEntity[]> {
+  async findAll(query: CommentsListQuery): Promise<[CommentsEntity[], number]> {
     const direction = query.order === 'asc' ? 'ASC' : 'DESC';
     this.logger.debug(query);
 
-    return await this.commentsRepository.find({
+    return await this.commentsRepository.findAndCount({
       where: {
         parentId: IsNull(),
       },

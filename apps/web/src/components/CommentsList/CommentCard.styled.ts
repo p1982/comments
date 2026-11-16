@@ -40,6 +40,13 @@ export const AuthorName = styled(Typography)`
   }
 `;
 
+export const CommentEmail = styled(Typography)`
+  && {
+    color: #6b7280;
+    font-size: 13px;
+  }
+`;
+
 export const CommentDate = styled(Typography)`
   && {
     color: #8b95a7;
@@ -48,9 +55,13 @@ export const CommentDate = styled(Typography)`
   }
 `;
 
-export const ActionRow = styled(Stack)`
-  flex-direction: row;
-  gap: ${({ theme }) => theme.spacing(0.25)};
+export const ActionRow = styled(Stack).attrs({
+  direction: 'row' as const,
+})`
+  && {
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing(0.25)};
+  }
 `;
 
 export const ActionButton = styled(IconButton)`
@@ -64,12 +75,15 @@ export const ActionButton = styled(IconButton)`
   }
 `;
 
-export const VoteRow = styled(Stack)`
-  flex-direction: row;
-  align-items: center;
-  margin-left: auto;
-  color: #8b95a7;
-  gap: ${({ theme }) => theme.spacing(0.25)};
+export const VoteRow = styled(Stack).attrs({
+  direction: 'row' as const,
+})`
+  && {
+    align-items: center;
+    margin-left: auto;
+    color: #8b95a7;
+    gap: ${({ theme }) => theme.spacing(0.25)};
+  }
 `;
 
 export const VoteCount = styled(Typography)`

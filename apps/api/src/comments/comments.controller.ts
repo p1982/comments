@@ -5,6 +5,7 @@ import {
   commentsSchema,
   ENDPOINTS,
   type CommentsListQuery,
+  type CommentsResult,
   type CommentsSchema,
 } from '@comments/shared';
 import {
@@ -86,7 +87,7 @@ export class CommentsController {
   @ApiOkResponse({ type: CommentResponseDto, isArray: true })
   getComments(
     @Query(new ZodValidationPipe(commentsListSchema)) query: CommentsListQuery,
-  ): Promise<CommentResponseDto[]> {
+  ): Promise<CommentsResult> {
     return this.commentsService.getComments(query);
   }
 
@@ -95,7 +96,7 @@ export class CommentsController {
   @ApiOperation({ summary: 'Get children comments by root id' })
   @ApiParam({ name: 'rootId', description: 'Root comment id' })
   @ApiOkResponse({ type: CommentResponseDto, isArray: true })
-  getCommentsByRootId(@Param('rootId') rootId: string): Promise<CommentResponseDto[]> {
+  getCommentsByRootId(@Param('rootId') rootId: string): Promise<CommentsResult> {
     return this.commentsService.getCommentsByRootId(rootId);
   }
 }

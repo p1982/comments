@@ -1,4 +1,9 @@
-import type { CommentResponse, CommentsListQuery, CommentsSchema } from '@comments/shared';
+import type {
+  CommentResponse,
+  CommentsListQuery,
+  CommentsResult,
+  CommentsSchema,
+} from '@comments/shared';
 import {
   HttpException,
   Injectable,
@@ -24,7 +29,7 @@ export class CommentsService {
     private readonly commentsRepository: CommentsRepository,
   ) {}
 
-  async getCommentsByRootId(rootId: string): Promise<CommentResponse[]> {
+  async getCommentsByRootId(rootId: string): Promise<CommentsResult> {
     this.logger.log(`Getting children comments for root id: ${rootId}`);
     try {
       const comments = await this.commentsRepository.findById(rootId);
@@ -32,9 +37,13 @@ export class CommentsService {
         throw new NotFoundException(ERROR_MESSAGES.notFound);
       }
       const childrenComments = await this.commentsRepository.findByRootId(rootId);
-      return childrenComments.map((comment: CommentsEntity) =>
-        toCommentResponse(comment, comment.user),
-      );
+      return {
+        data: childrenComments.map((comment: CommentsEntity) =>
+          toCommentResponse(comment, comment.user),
+        ),
+        status: 'success',
+        message: 'Comments fetched successfully',
+      };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -44,11 +53,17 @@ export class CommentsService {
     }
   }
 
-  async getComments(query: CommentsListQuery): Promise<CommentResponse[]> {
+  async getComments(query: CommentsListQuery): Promise<CommentsResult> {
     this.logger.log(`Getting all comments with query: ${JSON.stringify(query)}`);
     try {
-      const comments = await this.commentsRepository.findAll(query);
-      return comments.map((comment) => toCommentResponse(comment, comment.user));
+      const [comments, total] = await this.commentsRepository.findAll(query);
+      return {
+        data: comments.map((comment) => toCommentResponse(comment, comment.user)),
+        total,
+        totalPages: Math.ceil(total / query.limit),
+        status: 'success',
+        message: 'Comments fetched successfully',
+      };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;

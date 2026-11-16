@@ -25,7 +25,7 @@ const HomePage = () => {
     })();
   }, [fetchComments]);
 
-  if (isLoading) {
+  if (isLoading && commentsIds.length === 0) {
     return <Loader />;
   }
   return (

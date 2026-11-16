@@ -61,7 +61,7 @@ const useCommentsStore = create<CommentsState>()(
         set({ isLoading: true, error: null });
         try {
           const { data } = await commentsService.getComments(nextQuery);
-          const [comments, commentsIds] = reduceComments(data);
+          const [comments, commentsIds] = reduceComments(data.data);
 
           set({
             comments,
@@ -70,6 +70,8 @@ const useCommentsStore = create<CommentsState>()(
             limit: nextQuery.limit,
             sort: nextQuery.sort,
             order: nextQuery.order,
+            total: data.total ?? 0,
+            totalPages: data.totalPages ?? 0,
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to load comments';
@@ -84,7 +86,7 @@ const useCommentsStore = create<CommentsState>()(
         set({ isLoading: true, error: null });
         try {
           const { data } = await commentsService.getCommentByIdRoot(rootId);
-          const [comments, commentsIds] = reduceComments(data);
+          const [comments, commentsIds] = reduceComments(data.data);
           set({
             childrenComments: {
               ...state.childrenComments,

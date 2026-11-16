@@ -3,6 +3,8 @@
     "title": "Коментарі",
     "subtitle": "NX monorepo з Nest, Next, MUI та TypeORM",
     "nameLabel": "Імʼя",
+    "emailLabel": "Email",
+    "dateLabel": "Дата",
     "messageLabel": "Повідомлення",
     "submit": "Надіслати",
     "nameRequired": "Імʼя обовʼязкове",

@@ -233,21 +233,27 @@ describe('CommentsService', () => {
       email: 'ann@example.com',
       homepage: 'https://ann.example',
     } as UsersEntity;
-    commentsRepository.findAll.mockResolvedValue([{ ...savedComment, user: savedUser }]);
+    commentsRepository.findAll.mockResolvedValue([[{ ...savedComment, user: savedUser }], 1]);
 
     await expect(
       service.getComments({ page: 1, limit: 25, sort: 'createdAt', order: 'desc' }),
-    ).resolves.toEqual([
-      {
-        id: savedComment.id,
-        text: 'Hello',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        fullName: 'Ann',
-        email: 'ann@example.com',
-        homepage: 'https://ann.example',
-        parentId: null,
-      },
-    ]);
+    ).resolves.toEqual({
+      data: [
+        {
+          id: savedComment.id,
+          text: 'Hello',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          fullName: 'Ann',
+          email: 'ann@example.com',
+          homepage: 'https://ann.example',
+          parentId: null,
+        },
+      ],
+      total: 1,
+      totalPages: 1,
+      status: 'success',
+      message: 'Comments fetched successfully',
+    });
   });
 
   it('returns children of a root comment', async () => {
@@ -266,17 +272,21 @@ describe('CommentsService', () => {
     commentsRepository.findById.mockResolvedValue(savedComment);
     commentsRepository.findByRootId.mockResolvedValue([child]);
 
-    await expect(service.getCommentsByRootId(savedComment.id)).resolves.toEqual([
-      {
-        id: child.id,
-        text: 'Hello',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        fullName: 'Ann',
-        email: 'ann@example.com',
-        homepage: 'https://ann.example',
-        parentId: savedComment.id,
-      },
-    ]);
+    await expect(service.getCommentsByRootId(savedComment.id)).resolves.toEqual({
+      data: [
+        {
+          id: child.id,
+          text: 'Hello',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          fullName: 'Ann',
+          email: 'ann@example.com',
+          homepage: 'https://ann.example',
+          parentId: savedComment.id,
+        },
+      ],
+      status: 'success',
+      message: 'Comments fetched successfully',
+    });
     expect(commentsRepository.findByRootId).toHaveBeenCalledWith(savedComment.id);
   });
 

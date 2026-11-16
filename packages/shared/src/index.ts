@@ -8,6 +8,7 @@ export {
   type CommentResponse,
   type CommentSortField,
   type CommentSortOrder,
+  type CommentsResult,
   type CreateCommentRequest,
   type GetCommentsQuery,
 } from './dto/comment.dto.js';

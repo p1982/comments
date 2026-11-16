@@ -4,11 +4,10 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { getTranslations } from 'next-intl/server';
 
-import CommentsList from '@/components/CommentsList/CommentsList';
-
 import { Link } from '../../i18n/navigation';
+import HomePage from '@/pages/HomePages/HomePage';
 
-export default async function HomePage() {
+export default async function page() {
   const t = await getTranslations('HomePage');
 
   return (
@@ -29,7 +28,7 @@ export default async function HomePage() {
               </Link>
             </Stack>
           </Stack>
-          <CommentsList />
+          <HomePage />
         </Stack>
       </Container>
     </Box>

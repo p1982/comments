@@ -41,17 +41,19 @@ describe('CommentsController', () => {
   });
 
   it('passes the root id to the service', async () => {
-    commentsService.getCommentsByRootId.mockResolvedValue([]);
+    const thread = { data: [], status: 'success' as const, message: 'ok' };
+    commentsService.getCommentsByRootId.mockResolvedValue(thread);
 
-    await expect(controller.getCommentsByRootId('root-1')).resolves.toEqual([]);
+    await expect(controller.getCommentsByRootId('root-1')).resolves.toEqual(thread);
     expect(commentsService.getCommentsByRootId).toHaveBeenCalledWith('root-1');
   });
 
   it('passes the list query to the service', async () => {
     const query = { page: 2, limit: 25, sort: 'email' as const, order: 'asc' as const };
-    commentsService.getComments.mockResolvedValue([]);
+    const page = { data: [], status: 'success' as const, message: 'ok' };
+    commentsService.getComments.mockResolvedValue(page);
 
-    await expect(controller.getComments(query)).resolves.toEqual([]);
+    await expect(controller.getComments(query)).resolves.toEqual(page);
     expect(commentsService.getComments).toHaveBeenCalledWith(query);
   });
 });
