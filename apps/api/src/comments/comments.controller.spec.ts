@@ -3,7 +3,6 @@ jest.mock('@app/auth/services/jwt.service', () => ({
 }));
 
 import type { CommentsSchema } from '@comments/shared';
-
 import type { UsersEntity } from '@app/users/entity/users.entity';
 import type { RequestWithUser } from '@app/common/guards/auth.guard';
 

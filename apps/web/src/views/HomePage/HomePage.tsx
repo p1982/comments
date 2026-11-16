@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { toast } from 'react-toastify';
 
+import CommentForm from '@/components/CommentForm/CommentForm';
 import CommentsList from '@/components/CommentsList/CommentsList';
 import Loader from '@/components/Loader/Loader';
 import useCommentsStore from '@/store/comments/comments.store';
@@ -11,6 +12,7 @@ const HomePage = () => {
   const fetchComments = useCommentsStore((state) => state.fetchComments);
   const commentsIds = useCommentsStore((state) => state.commentsIds);
   const isLoading = useCommentsStore((state) => state.isLoading);
+  const commentTarget = useCommentsStore((state) => state.commentTarget);
 
   useEffect(() => {
     void (async () => {
@@ -30,6 +32,12 @@ const HomePage = () => {
   }
   return (
     <main>
+      {commentTarget && (
+        <CommentForm
+          key={commentTarget.parentId ?? 'root'}
+          {...(commentTarget.parentId ? { parentId: commentTarget.parentId } : {})}
+        />
+      )}
       <CommentsList commentsIds={commentsIds} />
     </main>
   );

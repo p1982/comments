@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import type { CommentResponse } from '@comments/shared';
-import type { CommentsEntity } from '../entity/comments.entity';
 import type { UsersEntity } from '@app/users/entity/users.entity';
+
+import type { CommentsEntity } from '../entity/comments.entity';
 
 export class CommentResponseDto implements CommentResponse {
   @ApiProperty({ format: 'uuid' })

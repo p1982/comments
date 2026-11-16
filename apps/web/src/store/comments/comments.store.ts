@@ -6,6 +6,7 @@ import type {
   CommentSortField,
   CommentSortOrder,
   CommentsListQuery,
+  CommentsSchema,
   GetCommentsQuery,
 } from '@comments/shared';
 import commentsService from '@/api/services/comments.service';
@@ -30,8 +31,18 @@ interface CommentsState {
   comment: CommentResponse | null;
   isLoading: boolean;
   error: string | null;
+  commentTarget: CommentTarget | null;
   fetchComments: (query?: GetCommentsQuery) => Promise<void>;
   fetchChildrenComments: (rootId: string) => Promise<void>;
+  createComment: (comment: CommentsSchema) => Promise<void>;
+  openRootForm: () => void;
+  openReplyForm: (parentId: string, rootId: string) => void;
+  closeCommentForm: () => void;
+}
+
+interface CommentTarget {
+  parentId: string | null;
+  rootId: string | null;
 }
 
 const useCommentsStore = create<CommentsState>()(
@@ -49,6 +60,7 @@ const useCommentsStore = create<CommentsState>()(
       limit: 25,
       sort: 'createdAt',
       order: 'desc',
+      commentTarget: null,
       fetchComments: async (query: GetCommentsQuery = {}) => {
         const state = get();
         const nextQuery: CommentsListQuery = {
@@ -103,6 +115,32 @@ const useCommentsStore = create<CommentsState>()(
         } finally {
           set({ isLoading: false });
         }
+      },
+      createComment: async (comment: CommentsSchema) => {
+        const rootId = comment.parentId ? (get().commentTarget?.rootId ?? comment.parentId) : null;
+        set({ isLoading: true, error: null });
+        try {
+          await commentsService.createComment(comment);
+          if (rootId) {
+            await get().fetchChildrenComments(rootId);
+            return;
+          }
+          await get().fetchComments({ page: 1 });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to create comment';
+          set({ error: message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      openRootForm: () => {
+        set({ commentTarget: { parentId: null, rootId: null } });
+      },
+      openReplyForm: (parentId: string, rootId: string) => {
+        set({ commentTarget: { parentId, rootId } });
+      },
+      closeCommentForm: () => {
+        set({ commentTarget: null });
       },
     }),
 

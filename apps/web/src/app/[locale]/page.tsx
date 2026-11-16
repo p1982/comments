@@ -4,8 +4,9 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { getTranslations } from 'next-intl/server';
 
-import { Link } from '../../i18n/navigation';
 import HomePage from '@/views/HomePage/HomePage';
+
+import { Link } from '../../i18n/navigation';
 
 export default async function page() {
   const t = await getTranslations('HomePage');

@@ -1,7 +1,8 @@
+import { join } from 'path';
+
 import { ConfigService } from '@nestjs/config';
 import { DataSource, type DataSourceOptions } from 'typeorm';
 import { config as loadEnv } from 'dotenv';
-import { join } from 'path';
 
 import { CommentsEntity } from '@app/comments/entity/comments.entity';
 import { UsersEntity } from '@app/users/entity/users.entity';

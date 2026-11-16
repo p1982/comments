@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import { ApolloWrapper, AppProviders } from '@/components/providers';
-
 import { routing } from '@/i18n/routing';
 
 export function generateStaticParams() {

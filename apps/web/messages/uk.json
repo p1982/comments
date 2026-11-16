@@ -4,6 +4,8 @@
     "subtitle": "NX monorepo з Nest, Next, MUI та TypeORM",
     "nameLabel": "Імʼя",
     "emailLabel": "Email",
+    "homepageLabel": "Домашня сторінка",
+    "textLabel": "Текст",
     "dateLabel": "Дата",
     "messageLabel": "Повідомлення",
     "submit": "Надіслати",

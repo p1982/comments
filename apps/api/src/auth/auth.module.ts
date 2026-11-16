@@ -1,10 +1,11 @@
-import { AuthGuard } from '@app/common/guards/auth.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Module } from '@nestjs/common';
 
-import { TokenService } from './services/jwt.service';
+import { AuthGuard } from '@app/common/guards/auth.guard';
 import { UsersModule } from '@app/users/users.module';
+
+import { TokenService } from './services/jwt.service';
 
 @Module({
   imports: [

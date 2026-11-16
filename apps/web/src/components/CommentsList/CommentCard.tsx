@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-
 import AddCircleOutlineOutlinedIcon from '@mui/icons-material/AddCircleOutlineOutlined';
+import AddCommentOutlinedIcon from '@mui/icons-material/AddCommentOutlined';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -10,11 +10,13 @@ import ReplyIcon from '@mui/icons-material/Reply';
 import TagIcon from '@mui/icons-material/Tag';
 
 import useCommentsStore from '@/store/comments/comments.store';
+import { formatCommentDate } from '@/utils';
 
 import CommentsList from './CommentsList';
 import {
   ActionButton,
   ActionRow,
+  AddCommentButton,
   AuthorName,
   Card,
   CommentAvatar,
@@ -25,7 +27,6 @@ import {
   VoteCount,
   VoteRow,
 } from './CommentCard.styled';
-import { formatCommentDate } from '@/utils';
 
 const defaultAvatarColor = '#90caf9';
 
@@ -43,7 +44,9 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
   const comment = useCommentsStore(
     (state) => state.comments[id] ?? state.childrenComments[rootId]?.comments[id] ?? null,
   );
+
   const thread = useCommentsStore((state) => state.childrenComments[rootId]);
+  const openReplyForm = useCommentsStore((state) => state.openReplyForm);
   const fetchChildrenComments = useCommentsStore((state) => state.fetchChildrenComments);
   const [expanded, setExpanded] = useState(false);
 
@@ -65,6 +68,14 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
     setExpanded(true);
   };
 
+  const handleReply = () => {
+    openReplyForm(id, rootId);
+    if (comment.parentId === null) {
+      setExpanded(true);
+      void fetchChildrenComments(id);
+    }
+  };
+
   return (
     <Card>
       <Header>
@@ -80,6 +91,9 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
             {expanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </ActionButton>
         )}
+        <AddCommentButton type="button" aria-label="Add comment" onClick={handleReply}>
+          <AddCommentOutlinedIcon />
+        </AddCommentButton>
         <CommentEmail>{comment.email}</CommentEmail>
         <CommentDate>{formatCommentDate(comment.createdAt)}</CommentDate>
         <ActionRow>
@@ -89,7 +103,7 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
           <ActionButton size="small" aria-label="Quote">
             <FormatQuoteIcon />
           </ActionButton>
-          <ActionButton size="small" aria-label="Reply">
+          <ActionButton size="small" aria-label="Reply" onClick={handleReply}>
             <ReplyIcon />
           </ActionButton>
           <ActionButton size="small" aria-label="Add">

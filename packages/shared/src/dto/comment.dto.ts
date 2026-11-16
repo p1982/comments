@@ -34,3 +34,9 @@ export interface CommentsResult {
   status: 'success' | 'error';
   message: string;
 }
+
+export interface CreateCommentResponse {
+  data: CommentResponse;
+  status: 'success' | 'error';
+  message: string;
+}

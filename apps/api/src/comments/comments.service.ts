@@ -1,9 +1,3 @@
-import type {
-  CommentResponse,
-  CommentsListQuery,
-  CommentsResult,
-  CommentsSchema,
-} from '@comments/shared';
 import {
   HttpException,
   Injectable,
@@ -13,9 +7,16 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
+import type {
+  CommentResponse,
+  CommentsListQuery,
+  CommentsResult,
+  CommentsSchema,
+} from '@comments/shared';
 import { UsersRepository } from '@app/users/repository/users.repository';
 import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 import { UsersEntity } from '@app/users/entity/users.entity';
+
 import { toCommentResponse } from './dto/comment-response.dto';
 import { CommentsRepository } from './repository/comments.repository';
 import { CommentsEntity } from './entity/comments.entity';

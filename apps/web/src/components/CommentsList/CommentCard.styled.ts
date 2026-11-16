@@ -64,6 +64,23 @@ export const ActionRow = styled(Stack).attrs({
   }
 `;
 
+export const AddCommentButton = styled(IconButton)`
+  && {
+    color: #fff;
+    background-color: #1976d2;
+    padding: ${({ theme }) => theme.spacing(1)};
+    margin-inline: ${({ theme }) => theme.spacing(0.75)};
+
+    &:hover {
+      background-color: #1565c0;
+    }
+  }
+
+  svg {
+    font-size: 20px;
+  }
+`;
+
 export const ActionButton = styled(IconButton)`
   && {
     color: #8b95a7;
