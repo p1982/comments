@@ -1,42 +1,71 @@
 'use client';
 
-import Stack from '@mui/material/Stack';
-import { useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { useTranslations } from 'next-intl';
 
+import type { CommentSortField } from '@comments/shared';
 import useCommentsStore from '@/store/comments/comments.store';
 
-import Loader from '../Loader/Loader';
+import PaginationOutlined from '../Pagination/Pagination';
 import CommentCard from './CommentCard';
+import { CommentsStack, SortBar, SortButton } from './CommentsList.styled';
 
-const CommentsList = () => {
-  const commentsIds = useCommentsStore((state) => state.commentsIds);
-  const isLoading = useCommentsStore((state) => state.isLoading);
+interface CommentsListProps {
+  commentsIds?: string[];
+  rootId?: string;
+  depth?: number;
+}
+
+const sortColumns: CommentSortField[] = ['fullName', 'email', 'createdAt'];
+
+const CommentsList = ({ commentsIds, rootId, depth = 0 }: CommentsListProps) => {
+  const t = useTranslations('HomePage');
+  const storedIds = useCommentsStore((state) => state.commentsIds);
+  const totalPages = useCommentsStore((state) => state.totalPages);
+  const page = useCommentsStore((state) => state.page);
+  const sort = useCommentsStore((state) => state.sort);
+  const order = useCommentsStore((state) => state.order);
   const fetchComments = useCommentsStore((state) => state.fetchComments);
+  const ids = commentsIds ?? storedIds;
+  const sortLabels: Record<CommentSortField, string> = {
+    fullName: t('nameLabel'),
+    email: t('emailLabel'),
+    createdAt: t('dateLabel'),
+  };
 
-  useEffect(() => {
-    void (async () => {
-      await fetchComments();
-      const message = useCommentsStore.getState().error;
-      if (message) {
-        toast.error(message, { toastId: 'comments-error' });
-        return;
-      }
+  const onPageChange = (nextPage: number) => {
+    void fetchComments({ page: nextPage });
+  };
 
-      toast.success('Comments loaded', { toastId: 'comments-loaded' });
-    })();
-  }, [fetchComments]);
-
-  if (isLoading) {
-    return <Loader />;
-  }
+  const onSort = (field: CommentSortField) => {
+    const nextOrder = sort === field && order === 'asc' ? 'desc' : 'asc';
+    void fetchComments({ sort: field, order: nextOrder, page: 1 });
+  };
 
   return (
-    <Stack spacing={2}>
-      {commentsIds.map((id) => (
-        <CommentCard key={id} id={id} />
+    <CommentsStack $depth={depth}>
+      {depth === 0 && (
+        <SortBar>
+          {sortColumns.map((field) => (
+            <SortButton
+              key={field}
+              type="button"
+              $active={sort === field}
+              aria-pressed={sort === field}
+              onClick={() => onSort(field)}
+            >
+              {sortLabels[field]}
+              {sort === field ? (order === 'asc' ? ' ↑' : ' ↓') : ''}
+            </SortButton>
+          ))}
+        </SortBar>
+      )}
+      {ids.map((id) => (
+        <CommentCard key={id} id={id} rootId={rootId ?? id} depth={depth} />
       ))}
-    </Stack>
+      {depth === 0 && storedIds.length > 0 && totalPages > 1 && (
+        <PaginationOutlined totalPages={totalPages} page={page} onPageChange={onPageChange} />
+      )}
+    </CommentsStack>
   );
 };
 

@@ -1,6 +1,6 @@
 import type { AxiosResponse } from 'axios';
 
-import { ENDPOINTS, type CommentResponse, type CommentsListQuery } from '@comments/shared';
+import { ENDPOINTS, type CommentsListQuery, type CommentsResult } from '@comments/shared';
 
 import axiosInstance from '../axios/axios-instance';
 import AbstractApiServices from './abstract.service';
@@ -10,7 +10,7 @@ class CommentsServices extends AbstractApiServices {
     super(axiosInstance);
   }
 
-  getComments(query: CommentsListQuery): Promise<AxiosResponse<CommentResponse[]>> {
+  getComments(query: CommentsListQuery): Promise<AxiosResponse<CommentsResult>> {
     return this.get(ENDPOINTS.COMMENTS, {
       params: {
         page: query.page,
@@ -19,6 +19,10 @@ class CommentsServices extends AbstractApiServices {
         order: query.order,
       },
     });
+  }
+
+  getCommentByIdRoot(rootId: string): Promise<AxiosResponse<CommentsResult>> {
+    return this.get(`${ENDPOINTS.COMMENTS}/${rootId}`);
   }
 }
 

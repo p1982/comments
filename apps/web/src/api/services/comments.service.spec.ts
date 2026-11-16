@@ -28,4 +28,14 @@ describe('commentsService', () => {
 
     get.mockRestore();
   });
+
+  it('loads a thread by root id', async () => {
+    const response = { data: [] } as AxiosResponse;
+    const get = jest.spyOn(axiosInstance, 'get').mockResolvedValue(response);
+
+    await expect(commentsService.getCommentByIdRoot('root-1')).resolves.toBe(response);
+    expect(get).toHaveBeenCalledWith(`${ENDPOINTS.COMMENTS}/root-1`, undefined);
+
+    get.mockRestore();
+  });
 });

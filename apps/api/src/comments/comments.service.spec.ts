@@ -13,7 +13,12 @@ describe('CommentsService', () => {
     }),
   };
   const usersRepository = { create: jest.fn(), findByEmail: jest.fn() };
-  const commentsRepository = { create: jest.fn(), findById: jest.fn(), findAll: jest.fn() };
+  const commentsRepository = {
+    create: jest.fn(),
+    findById: jest.fn(),
+    findAll: jest.fn(),
+    findByRootId: jest.fn(),
+  };
   const service = new CommentsService(
     dataSource as never,
     usersRepository as never,
@@ -228,21 +233,79 @@ describe('CommentsService', () => {
       email: 'ann@example.com',
       homepage: 'https://ann.example',
     } as UsersEntity;
-    commentsRepository.findAll.mockResolvedValue([{ ...savedComment, user: savedUser }]);
+    commentsRepository.findAll.mockResolvedValue([[{ ...savedComment, user: savedUser }], 1]);
 
     await expect(
       service.getComments({ page: 1, limit: 25, sort: 'createdAt', order: 'desc' }),
-    ).resolves.toEqual([
-      {
-        id: savedComment.id,
-        text: 'Hello',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        fullName: 'Ann',
-        email: 'ann@example.com',
-        homepage: 'https://ann.example',
-        parentId: null,
-      },
-    ]);
+    ).resolves.toEqual({
+      data: [
+        {
+          id: savedComment.id,
+          text: 'Hello',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          fullName: 'Ann',
+          email: 'ann@example.com',
+          homepage: 'https://ann.example',
+          parentId: null,
+        },
+      ],
+      total: 1,
+      totalPages: 1,
+      status: 'success',
+      message: 'Comments fetched successfully',
+    });
+  });
+
+  it('returns children of a root comment', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    const child = {
+      ...savedComment,
+      id: '33333333-3333-3333-3333-333333333333',
+      parentId: savedComment.id,
+      user: savedUser,
+    };
+    commentsRepository.findById.mockResolvedValue(savedComment);
+    commentsRepository.findByRootId.mockResolvedValue([child]);
+
+    await expect(service.getCommentsByRootId(savedComment.id)).resolves.toEqual({
+      data: [
+        {
+          id: child.id,
+          text: 'Hello',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          fullName: 'Ann',
+          email: 'ann@example.com',
+          homepage: 'https://ann.example',
+          parentId: savedComment.id,
+        },
+      ],
+      status: 'success',
+      message: 'Comments fetched successfully',
+    });
+    expect(commentsRepository.findByRootId).toHaveBeenCalledWith(savedComment.id);
+  });
+
+  it('rejects a children lookup when the root comment does not exist', async () => {
+    commentsRepository.findById.mockResolvedValue(null);
+
+    await expect(service.getCommentsByRootId(savedComment.id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(commentsRepository.findByRootId).not.toHaveBeenCalled();
+  });
+
+  it('turns a failed children lookup into an internal server error', async () => {
+    commentsRepository.findById.mockResolvedValue(savedComment);
+    commentsRepository.findByRootId.mockRejectedValue(new Error('db down'));
+
+    await expect(service.getCommentsByRootId(savedComment.id)).rejects.toBeInstanceOf(
+      InternalServerErrorException,
+    );
   });
 
   it('turns a failed list into an internal server error', async () => {

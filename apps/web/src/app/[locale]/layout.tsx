@@ -27,8 +27,8 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
-      <body>
+    <html lang={locale} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <ApolloWrapper>
           <NextIntlClientProvider locale={locale} messages={messages}>
             <AppProviders>{children}</AppProviders>

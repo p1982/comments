@@ -3,6 +3,8 @@
     "title": "Comments",
     "subtitle": "NX monorepo with Nest, Next, MUI and TypeORM",
     "nameLabel": "Name",
+    "emailLabel": "Email",
+    "dateLabel": "Date",
     "messageLabel": "Message",
     "submit": "Submit",
     "nameRequired": "Name is required",

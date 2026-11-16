@@ -53,20 +53,31 @@ const seedComments = async (source: DataSource): Promise<{ roots: number; replie
       }),
     );
 
-    const replies = savedRoots.flatMap((root, index) =>
-      Array.from({ length: index }, (_, childIndex) => {
+    const replies = savedRoots.flatMap((root, index) => {
+      const thread: CommentsEntity[] = [];
+
+      for (let childIndex = 0; childIndex < index; childIndex += 1) {
         const createdAt = new Date(root.createdAt.getTime() + (childIndex + 1) * 1000);
-        return comments.create({
-          id: crypto.randomUUID(),
-          rootId: root.id,
-          parentId: root.id,
-          userId: root.userId,
-          text: `Reply ${pad(childIndex + 1)} to root ${pad(index + 1)}`,
-          createdAt,
-          updatedAt: createdAt,
-        });
-      }),
-    );
+        const previous = thread[childIndex - 1];
+        const parent = childIndex % 3 === 0 || !previous ? root : previous;
+        thread.push(
+          comments.create({
+            id: crypto.randomUUID(),
+            rootId: root.id,
+            parentId: parent.id,
+            userId: root.userId,
+            text:
+              parent.id === root.id
+                ? `Reply ${pad(childIndex + 1)} to root ${pad(index + 1)}`
+                : `Reply ${pad(childIndex + 1)} to reply ${pad(childIndex)}`,
+            createdAt,
+            updatedAt: createdAt,
+          }),
+        );
+      }
+
+      return thread;
+    });
 
     if (replies.length > 0) {
       await comments.save(replies);
