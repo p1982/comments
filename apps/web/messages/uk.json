@@ -9,6 +9,8 @@
     "dateLabel": "Дата",
     "messageLabel": "Повідомлення",
     "submit": "Надіслати",
+    "preview": "Перегляд",
+    "cancel": "Скасувати",
     "nameRequired": "Імʼя обовʼязкове",
     "messageRequired": "Повідомлення обовʼязкове"
   }

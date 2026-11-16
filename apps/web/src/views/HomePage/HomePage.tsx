@@ -32,12 +32,7 @@ const HomePage = () => {
   }
   return (
     <main>
-      {commentTarget && (
-        <CommentForm
-          key={commentTarget.parentId ?? 'root'}
-          {...(commentTarget.parentId ? { parentId: commentTarget.parentId } : {})}
-        />
-      )}
+      {commentTarget?.parentId === null && <CommentForm key="root" />}
       <CommentsList commentsIds={commentsIds} />
     </main>
   );
