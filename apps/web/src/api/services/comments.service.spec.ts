@@ -39,4 +39,20 @@ describe('commentsService', () => {
 
     get.mockRestore();
   });
+
+  it('creates a comment', async () => {
+    const response = { data: { id: '1' } } as AxiosResponse;
+    const post = jest.spyOn(axiosInstance, 'post').mockResolvedValue(response);
+    const comment = {
+      fullName: 'Formcheck',
+      email: 'formcheck@example.com',
+      homepage: 'https://example.com',
+      text: '<strong>Form check</strong>',
+    };
+
+    await expect(commentsService.createComment(comment)).resolves.toBe(response);
+    expect(post).toHaveBeenCalledWith(ENDPOINTS.COMMENTS, comment, undefined);
+
+    post.mockRestore();
+  });
 });
