@@ -24,7 +24,28 @@ export class CommentsService {
     private readonly commentsRepository: CommentsRepository,
   ) {}
 
+  async getCommentsByRootId(rootId: string): Promise<CommentResponse[]> {
+    this.logger.log(`Getting children comments for root id: ${rootId}`);
+    try {
+      const comments = await this.commentsRepository.findById(rootId);
+      if (!comments) {
+        throw new NotFoundException(ERROR_MESSAGES.notFound);
+      }
+      const childrenComments = await this.commentsRepository.findByRootId(rootId);
+      return childrenComments.map((comment: CommentsEntity) =>
+        toCommentResponse(comment, comment.user),
+      );
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(error);
+      throw new InternalServerErrorException(ERROR_MESSAGES.internalServerError);
+    }
+  }
+
   async getComments(query: CommentsListQuery): Promise<CommentResponse[]> {
+    this.logger.log(`Getting all comments with query: ${JSON.stringify(query)}`);
     try {
       const comments = await this.commentsRepository.findAll(query);
       return comments.map((comment) => toCommentResponse(comment, comment.user));

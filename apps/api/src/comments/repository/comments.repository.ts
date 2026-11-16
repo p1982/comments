@@ -22,6 +22,27 @@ export class CommentsRepository {
     private readonly commentsRepository: Repository<CommentsEntity>,
   ) {}
 
+  async findByRootId(rootId: string): Promise<CommentsEntity[]> {
+    this.logger.debug(`Finding comments by root id: ${rootId}`);
+    return await this.commentsRepository.find({
+      where: { rootId },
+      select: {
+        id: true,
+        text: true,
+        createdAt: true,
+        parentId: true,
+        user: {
+          id: true,
+          fullName: true,
+          email: true,
+          homepage: true,
+        },
+      },
+      relations: { user: true },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+  }
+
   async findAll(query: CommentsListQuery): Promise<CommentsEntity[]> {
     const direction = query.order === 'asc' ? 'ASC' : 'DESC';
     this.logger.debug(query);

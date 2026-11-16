@@ -6,14 +6,24 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReplyIcon from '@mui/icons-material/Reply';
 import TagIcon from '@mui/icons-material/Tag';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import dayjs from 'dayjs';
 
 import useCommentsStore from '@/store/comments/comments.store';
+
+import Loader from '../Loader/Loader';
+import CommentsList from './CommentsList';
+import {
+  ActionButton,
+  ActionRow,
+  AuthorName,
+  Card,
+  CommentAvatar,
+  CommentDate,
+  CommentText,
+  Header,
+  VoteCount,
+  VoteRow,
+} from './CommentCard.styled';
+import { formatCommentDate } from '@/utils';
 
 const defaultAvatarColor = '#90caf9';
 
@@ -27,12 +37,24 @@ const avatarColor = (name: string) => {
   return avatarColors[sum % avatarColors.length] ?? defaultAvatarColor;
 };
 
-const formatCommentDate = (value: string) => dayjs(value).format('DD.MM.YY [в] HH:mm');
-
-const actionIconSx = { color: '#8b95a7', p: 0.5 };
-
 const CommentCard = ({ id }: { id: string }) => {
-  const comment = useCommentsStore((state) => state.comments[id]);
+  const comment = useCommentsStore((state) => {
+    const parent = state.comments[id];
+    if (parent) {
+      return parent;
+    }
+
+    const children = state.childrenComments['rootId']
+      ? state.childrenComments['rootId'].comments[id]
+      : null;
+    if (children) {
+      return children;
+    }
+    return null;
+  });
+  const fetchChildrenComments = useCommentsStore((state) => state.fetchChildrenComments);
+  const isLoading = useCommentsStore((state) => state.isLoading);
+  const childrenCommentsIds = useCommentsStore((state) => state.childrenComments[id]?.commentsIds);
 
   if (!comment) {
     return null;
@@ -40,87 +62,56 @@ const CommentCard = ({ id }: { id: string }) => {
 
   const initial = comment.fullName.trim().charAt(0).toUpperCase() || '?';
 
+  const handleRootIdClick = async () => {
+    await fetchChildrenComments(id);
+  };
+
+  if (isLoading) {
+    return <Loader />;
+  }
+
   return (
-    <Box
-      sx={{
-        overflow: 'hidden',
-        borderRadius: '10px',
-        border: '1px solid #e6e8ec',
-        bgcolor: '#fff',
-        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
-      }}
-    >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.25,
-          px: 2,
-          py: 1.25,
-          bgcolor: '#f4f6f8',
-        }}
-      >
-        <Avatar
-          sx={{
-            width: 40,
-            height: 40,
-            bgcolor: avatarColor(comment.fullName),
-            color: '#1f2937',
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
-          {initial}
-        </Avatar>
-        <Typography sx={{ fontWeight: 700, color: '#1f2937', fontSize: 15 }}>
-          {comment.fullName}
-        </Typography>
-        <Typography sx={{ color: '#8b95a7', fontSize: 13, whiteSpace: 'nowrap' }}>
-          {formatCommentDate(comment.createdAt)}
-        </Typography>
-        <Stack direction="row" spacing={0.25}>
-          <IconButton size="small" aria-label="Link" sx={actionIconSx}>
-            <TagIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          <IconButton size="small" aria-label="Quote" sx={actionIconSx}>
-            <FormatQuoteIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          <IconButton size="small" aria-label="Reply" sx={actionIconSx}>
-            <ReplyIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          <IconButton size="small" aria-label="Add" sx={actionIconSx}>
-            <AddCircleOutlineOutlinedIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Stack>
-        <Stack
-          direction="row"
-          spacing={0.25}
-          sx={{ ml: 'auto', alignItems: 'center', color: '#8b95a7' }}
-        >
-          <IconButton size="small" aria-label="Upvote" sx={actionIconSx}>
-            <KeyboardArrowUpIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          <Typography sx={{ minWidth: 12, textAlign: 'center', fontSize: 14, color: '#6b7280' }}>
-            0
-          </Typography>
-          <IconButton size="small" aria-label="Downvote" sx={actionIconSx}>
-            <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Stack>
-      </Box>
-      <Typography
-        sx={{
-          px: 2.5,
-          py: 2,
-          color: '#4b5568',
-          fontSize: 15,
-          lineHeight: 1.65,
-          whiteSpace: 'pre-wrap',
-        }}
-      >
-        {comment.text}
-      </Typography>
-    </Box>
+    <Card>
+      <Header>
+        <CommentAvatar $color={avatarColor(comment.fullName)}>{initial}</CommentAvatar>
+        <AuthorName>{comment.fullName}</AuthorName>
+        {comment.parentId === null && (
+          <ActionButton
+            size="small"
+            aria-label="Show replies"
+            onClick={() => void handleRootIdClick()}
+          >
+            <KeyboardArrowDownIcon />
+          </ActionButton>
+        )}
+        <CommentDate>{formatCommentDate(comment.createdAt)}</CommentDate>
+        <ActionRow>
+          <ActionButton size="small" aria-label="Link">
+            <TagIcon />
+          </ActionButton>
+          <ActionButton size="small" aria-label="Quote">
+            <FormatQuoteIcon />
+          </ActionButton>
+          <ActionButton size="small" aria-label="Reply">
+            <ReplyIcon />
+          </ActionButton>
+          <ActionButton size="small" aria-label="Add">
+            <AddCircleOutlineOutlinedIcon />
+          </ActionButton>
+        </ActionRow>
+        <VoteRow>
+          <ActionButton size="small" aria-label="Upvote">
+            <KeyboardArrowUpIcon />
+          </ActionButton>
+          <VoteCount>0</VoteCount>
+          <ActionButton size="small" aria-label="Downvote">
+            <KeyboardArrowDownIcon />
+          </ActionButton>
+        </VoteRow>
+      </Header>
+      <CommentText>{comment.text}</CommentText>
+      {childrenCommentsIds && <CommentsList commentsIds={childrenCommentsIds} depth={3} />}
+    </Card>
   );
 };
 

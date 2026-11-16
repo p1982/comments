@@ -9,10 +9,18 @@ import type {
   GetCommentsQuery,
 } from '@comments/shared';
 import commentsService from '@/api/services/comments.service';
+import { reduceComments } from '@/utils';
+
+interface ChildrenCommentsState {
+  comments: Record<string, CommentResponse>;
+  commentsIds: string[];
+  rootId: string | null;
+}
 
 interface CommentsState {
   comments: Record<string, CommentResponse>;
   commentsIds: string[];
+  childrenComments: Record<string, ChildrenCommentsState>;
   page: number;
   limit: number;
   sort: CommentSortField;
@@ -23,12 +31,14 @@ interface CommentsState {
   isLoading: boolean;
   error: string | null;
   fetchComments: (query?: GetCommentsQuery) => Promise<void>;
+  fetchChildrenComments: (rootId: string) => Promise<void>;
 }
 
 const useCommentsStore = create<CommentsState>()(
   persist(
     (set, get) => ({
       comments: {},
+      childrenComments: {},
       isLoading: false,
       error: null,
       commentsIds: [],
@@ -51,18 +61,39 @@ const useCommentsStore = create<CommentsState>()(
         set({ isLoading: true, error: null });
         try {
           const { data } = await commentsService.getComments(nextQuery);
-          const comments = {
-            ...state.comments,
-            ...Object.fromEntries(data.map((comment) => [comment.id, comment])),
-          };
+          const [comments, commentsIds] = reduceComments(data);
 
           set({
             comments,
-            commentsIds: data.map((comment) => comment.id),
+            commentsIds,
             page: nextQuery.page,
             limit: nextQuery.limit,
             sort: nextQuery.sort,
             order: nextQuery.order,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to load comments';
+          set({ error: message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      fetchChildrenComments: async (rootId: string) => {
+        const state = get();
+        set({ isLoading: true, error: null });
+        try {
+          const { data } = await commentsService.getCommentByIdRoot(rootId);
+          const [comments, commentsIds] = reduceComments(data);
+          set({
+            childrenComments: {
+              ...state.childrenComments,
+              [rootId]: {
+                comments,
+                commentsIds,
+                rootId,
+              },
+            },
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to load comments';
@@ -85,6 +116,7 @@ const useCommentsStore = create<CommentsState>()(
         total: state.total,
         totalPages: state.totalPages,
         comment: state.comment,
+        childrenComments: state.childrenComments,
       }),
     },
   ),

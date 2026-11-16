@@ -20,6 +20,10 @@ class CommentsServices extends AbstractApiServices {
       },
     });
   }
+
+  getCommentByIdRoot(rootId: string): Promise<AxiosResponse<CommentResponse[]>> {
+    return this.get(`${ENDPOINTS.COMMENTS}/${rootId}`);
+  }
 }
 
 const commentsService = new CommentsServices();

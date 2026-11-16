@@ -1,42 +1,20 @@
 'use client';
 
-import Stack from '@mui/material/Stack';
-import { useEffect } from 'react';
-import { toast } from 'react-toastify';
-
-import useCommentsStore from '@/store/comments/comments.store';
-
-import Loader from '../Loader/Loader';
 import CommentCard from './CommentCard';
+import { CommentsStack } from './CommentsList.styled';
 
-const CommentsList = () => {
-  const commentsIds = useCommentsStore((state) => state.commentsIds);
-  const isLoading = useCommentsStore((state) => state.isLoading);
-  const fetchComments = useCommentsStore((state) => state.fetchComments);
+interface CommentsListProps {
+  commentsIds: string[];
+  depth?: number;
+}
 
-  useEffect(() => {
-    void (async () => {
-      await fetchComments();
-      const message = useCommentsStore.getState().error;
-      if (message) {
-        toast.error(message, { toastId: 'comments-error' });
-        return;
-      }
-
-      toast.success('Comments loaded', { toastId: 'comments-loaded' });
-    })();
-  }, [fetchComments]);
-
-  if (isLoading) {
-    return <Loader />;
-  }
-
+const CommentsList = ({ commentsIds, depth = 0 }: CommentsListProps) => {
   return (
-    <Stack spacing={2}>
+    <CommentsStack $depth={depth}>
       {commentsIds.map((id) => (
         <CommentCard key={id} id={id} />
       ))}
-    </Stack>
+    </CommentsStack>
   );
 };
 

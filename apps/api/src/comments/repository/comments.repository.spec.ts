@@ -67,6 +67,29 @@ describe('CommentsRepository', () => {
     );
   });
 
+  it('loads a thread by root id', async () => {
+    repo.find.mockResolvedValue([]);
+
+    await expect(comments.findByRootId('root-1')).resolves.toEqual([]);
+    expect(repo.find).toHaveBeenCalledWith({
+      where: { rootId: 'root-1' },
+      select: {
+        id: true,
+        text: true,
+        createdAt: true,
+        parentId: true,
+        user: {
+          id: true,
+          fullName: true,
+          email: true,
+          homepage: true,
+        },
+      },
+      relations: { user: true },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+  });
+
   it('finds a comment by id', async () => {
     const comment = { id: '1' } as CommentsEntity;
     repo.findOne.mockResolvedValue(comment);

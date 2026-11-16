@@ -11,7 +11,11 @@ import { CommentsController } from './comments.controller';
 import type { CommentsService } from './comments.service';
 
 describe('CommentsController', () => {
-  const commentsService = { createComment: jest.fn(), getComments: jest.fn() };
+  const commentsService = {
+    createComment: jest.fn(),
+    getComments: jest.fn(),
+    getCommentsByRootId: jest.fn(),
+  };
   const controller = new CommentsController(commentsService as unknown as CommentsService);
   const body = {
     fullName: 'Ann',
@@ -34,6 +38,13 @@ describe('CommentsController', () => {
     await controller.createComment({ user } as RequestWithUser, body);
 
     expect(commentsService.createComment).toHaveBeenCalledWith(body, user);
+  });
+
+  it('passes the root id to the service', async () => {
+    commentsService.getCommentsByRootId.mockResolvedValue([]);
+
+    await expect(controller.getCommentsByRootId('root-1')).resolves.toEqual([]);
+    expect(commentsService.getCommentsByRootId).toHaveBeenCalledWith('root-1');
   });
 
   it('passes the list query to the service', async () => {

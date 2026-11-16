@@ -13,6 +13,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   Req,
@@ -24,6 +25,7 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
@@ -86,5 +88,14 @@ export class CommentsController {
     @Query(new ZodValidationPipe(commentsListSchema)) query: CommentsListQuery,
   ): Promise<CommentResponseDto[]> {
     return this.commentsService.getComments(query);
+  }
+
+  @Get(':rootId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get children comments by root id' })
+  @ApiParam({ name: 'rootId', description: 'Root comment id' })
+  @ApiOkResponse({ type: CommentResponseDto, isArray: true })
+  getCommentsByRootId(@Param('rootId') rootId: string): Promise<CommentResponseDto[]> {
+    return this.commentsService.getCommentsByRootId(rootId);
   }
 }
