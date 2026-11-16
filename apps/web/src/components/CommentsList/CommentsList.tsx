@@ -1,5 +1,6 @@
 'use client';
 
+import Button from '@mui/material/Button';
 import { useTranslations } from 'next-intl';
 
 import type { CommentSortField } from '@comments/shared';
@@ -24,6 +25,7 @@ const CommentsList = ({ commentsIds, rootId, depth = 0 }: CommentsListProps) => 
   const page = useCommentsStore((state) => state.page);
   const sort = useCommentsStore((state) => state.sort);
   const order = useCommentsStore((state) => state.order);
+  const openRootForm = useCommentsStore((state) => state.openRootForm);
   const fetchComments = useCommentsStore((state) => state.fetchComments);
   const ids = commentsIds ?? storedIds;
   const sortLabels: Record<CommentSortField, string> = {
@@ -57,6 +59,9 @@ const CommentsList = ({ commentsIds, rootId, depth = 0 }: CommentsListProps) => 
               {sort === field ? (order === 'asc' ? ' ↑' : ' ↓') : ''}
             </SortButton>
           ))}
+          <Button type="button" onClick={openRootForm}>
+            Add Comment
+          </Button>
         </SortBar>
       )}
       {ids.map((id) => (

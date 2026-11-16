@@ -11,4 +11,5 @@ export {
   type CommentsResult,
   type CreateCommentRequest,
   type GetCommentsQuery,
+  type CreateCommentResponse,
 } from './dto/comment.dto.js';

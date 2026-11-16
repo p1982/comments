@@ -1,8 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
+
 import { TokenService } from '@app/auth/services/jwt.service';
 import { UsersRepository } from '@app/users/repository/users.repository';
 import { UsersEntity } from '@app/users/entity/users.entity';
+
 import { ERROR_MESSAGES } from '../filter/error-messages';
 
 export type RequestWithUser = Omit<Request, 'cookies'> & {

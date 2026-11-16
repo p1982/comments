@@ -1,6 +1,12 @@
 import type { AxiosResponse } from 'axios';
 
-import { ENDPOINTS, type CommentsListQuery, type CommentsResult } from '@comments/shared';
+import {
+  ENDPOINTS,
+  type CommentsListQuery,
+  type CommentsResult,
+  type CommentsSchema,
+  type CreateCommentResponse,
+} from '@comments/shared';
 
 import axiosInstance from '../axios/axios-instance';
 import AbstractApiServices from './abstract.service';
@@ -23,6 +29,10 @@ class CommentsServices extends AbstractApiServices {
 
   getCommentByIdRoot(rootId: string): Promise<AxiosResponse<CommentsResult>> {
     return this.get(`${ENDPOINTS.COMMENTS}/${rootId}`);
+  }
+
+  createComment(comment: CommentsSchema): Promise<AxiosResponse<CreateCommentResponse>> {
+    return this.post(ENDPOINTS.COMMENTS, comment);
   }
 }
 

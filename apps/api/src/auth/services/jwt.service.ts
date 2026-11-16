@@ -1,6 +1,7 @@
-import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+
+import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 
 export interface TokenPayload {
   id: string;

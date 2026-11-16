@@ -1,14 +1,4 @@
 import {
-  commentSortFields,
-  commentSortOrders,
-  commentsListSchema,
-  commentsSchema,
-  ENDPOINTS,
-  type CommentsListQuery,
-  type CommentsResult,
-  type CommentsSchema,
-} from '@comments/shared';
-import {
   Body,
   Controller,
   Get,
@@ -31,12 +21,22 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import {
+  commentSortFields,
+  commentSortOrders,
+  commentsListSchema,
+  commentsSchema,
+  ENDPOINTS,
+  type CommentsListQuery,
+  type CommentsResult,
+  type CommentsSchema,
+} from '@comments/shared';
 import { ZodValidationPipe } from '@app/common/pipes/validation.pipe';
+import { AuthGuard, type RequestWithUser } from '@app/common/guards/auth.guard';
 
 import { CommentsService } from './comments.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { AuthGuard, type RequestWithUser } from '@app/common/guards/auth.guard';
 
 @ApiTags(ENDPOINTS.COMMENTS)
 @Controller(ENDPOINTS.COMMENTS)

@@ -1,5 +1,6 @@
-import { ENDPOINTS } from '@comments/shared';
 import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+
+import { ENDPOINTS } from '@comments/shared';
 
 import { API_CONFIG } from './config';
 import { setupInterceptors } from './interceptors';

@@ -1,5 +1,4 @@
 import { ArgumentsHost, Catch, Logger } from '@nestjs/common';
-
 import { BaseWsExceptionFilter, type ErrorPayload, WsException } from '@nestjs/websockets';
 
 import { ERROR_MESSAGES } from './error-messages';

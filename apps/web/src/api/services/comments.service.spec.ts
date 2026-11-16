@@ -1,5 +1,6 @@
-import { ENDPOINTS } from '@comments/shared';
 import type { AxiosResponse } from 'axios';
+
+import { ENDPOINTS } from '@comments/shared';
 
 import axiosInstance from '../axios/axios-instance';
 import commentsService from './comments.service';
