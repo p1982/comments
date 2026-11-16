@@ -13,6 +13,7 @@ import { sanitizeHtml } from '@comments/shared';
 import useCommentsStore from '@/store/comments/comments.store';
 import { formatCommentDate } from '@/utils';
 
+import CommentForm from '../CommentForm/CommentForm';
 import CommentsList from './CommentsList';
 import {
   ActionButton,
@@ -48,6 +49,7 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
 
   const thread = useCommentsStore((state) => state.childrenComments[rootId]);
   const openReplyForm = useCommentsStore((state) => state.openReplyForm);
+  const replyParentId = useCommentsStore((state) => state.commentTarget?.parentId ?? null);
   const fetchChildrenComments = useCommentsStore((state) => state.fetchChildrenComments);
   const [expanded, setExpanded] = useState(false);
 
@@ -122,6 +124,7 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
         </VoteRow>
       </Header>
       <CommentText dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.text) }} />
+      {replyParentId === id && <CommentForm parentId={id} />}
       {(comment.parentId !== null || expanded) && directChildIds.length > 0 && (
         <CommentsList commentsIds={directChildIds} rootId={rootId} depth={depth + 1} />
       )}
