@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import { getTranslations } from 'next-intl/server';
 
 import { Link } from '../../i18n/navigation';
-import HomePage from '@/pages/HomePages/HomePage';
+import HomePage from '@/views/HomePage/HomePage';
 
 export default async function page() {
   const t = await getTranslations('HomePage');
