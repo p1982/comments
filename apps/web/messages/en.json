@@ -9,6 +9,8 @@
     "dateLabel": "Date",
     "messageLabel": "Message",
     "submit": "Submit",
+    "preview": "Preview",
+    "cancel": "Cancel",
     "nameRequired": "Name is required",
     "messageRequired": "Message is required"
   }

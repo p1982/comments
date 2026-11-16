@@ -9,6 +9,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReplyIcon from '@mui/icons-material/Reply';
 import TagIcon from '@mui/icons-material/Tag';
 
+import { sanitizeHtml } from '@comments/shared';
 import useCommentsStore from '@/store/comments/comments.store';
 import { formatCommentDate } from '@/utils';
 
@@ -120,7 +121,7 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
           </ActionButton>
         </VoteRow>
       </Header>
-      <CommentText>{comment.text}</CommentText>
+      <CommentText dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.text) }} />
       {(comment.parentId !== null || expanded) && directChildIds.length > 0 && (
         <CommentsList commentsIds={directChildIds} rootId={rootId} depth={depth + 1} />
       )}

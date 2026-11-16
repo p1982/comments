@@ -6,15 +6,19 @@ import TextField from '@mui/material/TextField';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
+import { useState } from 'react';
 
 import { commentsSchema, type CommentsSchema } from '@comments/shared';
 import useCommentsStore from '@/store/comments/comments.store';
+
+import CommentPreview from '../CommentPreview/CommentPreview';
 
 interface CommentFormProps {
   parentId?: string;
 }
 
 function CommentForm({ parentId }: CommentFormProps) {
+  const [preview, setPreview] = useState<CommentsSchema | null>(null);
   const t = useTranslations('HomePage');
   const createComment = useCommentsStore((state) => state.createComment);
   const closeCommentForm = useCommentsStore((state) => state.closeCommentForm);
@@ -23,6 +27,8 @@ function CommentForm({ parentId }: CommentFormProps) {
     register,
     handleSubmit,
     reset,
+    trigger,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<CommentsSchema>({
     resolver: zodResolver(commentsSchema),
@@ -34,6 +40,11 @@ function CommentForm({ parentId }: CommentFormProps) {
       ...(parentId ? { parentId } : {}),
     },
   });
+
+  const handlePreview = async () => {
+    const valid = await trigger();
+    setPreview(valid ? getValues() : null);
+  };
 
   const onSubmit = async (values: CommentsSchema) => {
     await createComment({
@@ -54,6 +65,7 @@ function CommentForm({ parentId }: CommentFormProps) {
     reset();
     closeCommentForm();
     toast.success('Comment created successfully');
+    setPreview(null);
   };
 
   return (
@@ -69,8 +81,12 @@ function CommentForm({ parentId }: CommentFormProps) {
       <Button variant="contained" type="submit" disabled={isSubmitting}>
         {t('submit')}
       </Button>
+      <Button variant="contained" type="button" onClick={handlePreview}>
+        {t('preview')}
+      </Button>
+      {preview && <CommentPreview comment={preview} />}
       <Button variant="contained" type="button" onClick={closeCommentForm}>
-        Cancel
+        {t('cancel')}{' '}
       </Button>
     </form>
   );
