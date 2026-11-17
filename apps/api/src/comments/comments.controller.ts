@@ -8,7 +8,7 @@ import {
   Post,
   Query,
   Req,
-  UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -22,7 +22,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 
 import {
   commentSortFields,
@@ -57,17 +57,27 @@ export class CommentsController {
   })
   @ApiBody({ type: CreateCommentDto })
   @ApiCreatedResponse({ type: CommentResponseDto })
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image', maxCount: 1 },
+      { name: 'textFile', maxCount: 1 },
+    ]),
+  )
   createComment(
     @Req() request: RequestWithUser,
     @Body(new ZodValidationPipe(commentsSchema)) body: CommentsSchema,
-    @UploadedFile() image?: Express.Multer.File,
+    @UploadedFiles()
+    files?: {
+      image?: Express.Multer.File[];
+      textFile?: Express.Multer.File[];
+    },
   ): Promise<CommentResponseDto> {
     return this.commentsService.createComment(
       body,
       request.cookies?.captcha ?? null,
       request.user ?? null,
-      image,
+      files?.image?.[0],
+      files?.textFile?.[0],
     );
   }
 

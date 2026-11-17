@@ -24,11 +24,14 @@ function CommentForm({ parentId }: CommentFormProps) {
   const [linkHref, setLinkHref] = useState('');
   const [linkTitle, setLinkTitle] = useState('');
   const [image, setImage] = useState<File | null>(null);
+  const [textFile, setTextFile] = useState<File | null>(null);
+
   const t = useTranslations('HomePage');
   const createComment = useCommentsStore((state) => state.createComment);
   const closeCommentForm = useCommentsStore((state) => state.closeCommentForm);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const imageRef = useRef<HTMLInputElement | null>(null);
+  const textFileRef = useRef<HTMLInputElement | null>(null);
   const linkSelection = useRef({ start: 0, end: 0 });
 
   const {
@@ -119,6 +122,7 @@ function CommentForm({ parentId }: CommentFormProps) {
         ...(parentId ? { parentId } : {}),
       },
       image ?? undefined,
+      textFile ?? undefined,
     );
 
     const message = useCommentsStore.getState().error;
@@ -130,7 +134,9 @@ function CommentForm({ parentId }: CommentFormProps) {
 
     reset();
     setImage(null);
+    setTextFile(null);
     if (imageRef.current) imageRef.current.value = '';
+    if (textFileRef.current) textFileRef.current.value = '';
     closeCommentForm();
     toast.success('Comment created successfully');
     setPreview(null);
@@ -217,6 +223,22 @@ function CommentForm({ parentId }: CommentFormProps) {
           />
           <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
             {image?.name}
+          </Box>
+        </Box>
+        <Box>
+          <Box
+            component="input"
+            type="file"
+            accept=".txt,text/plain"
+            aria-label={t('textFileLabel')}
+            ref={textFileRef}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              setTextFile(event.target.files?.[0] ?? null)
+            }
+            sx={{ display: 'block', width: '100%' }}
+          />
+          <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
+            {textFile?.name}
           </Box>
         </Box>
         <Box>

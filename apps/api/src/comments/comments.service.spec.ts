@@ -395,4 +395,71 @@ describe('CommentsService', () => {
       manager,
     );
   });
+
+  it('stores a text file of 100 KB', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+    const text = Buffer.alloc(100 * 1024, 0x61);
+
+    await service.createComment(comment, captchaToken, null, undefined, {
+      buffer: text,
+      originalname: 'note.txt',
+    } as Express.Multer.File);
+
+    expect(writeFile).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`apps/api/assets/${savedComment.id}\\.txt$`)),
+      text,
+    );
+    expect(attachmentsRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storageKey: `${savedComment.id}.txt`,
+        file_type: 'text',
+        mimeType: 'text/plain',
+        fileSize: 100 * 1024,
+      }),
+      manager,
+    );
+  });
+
+  it('rejects a text file larger than 100 KB before writing it', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+
+    await expect(
+      service.createComment(comment, captchaToken, null, undefined, {
+        buffer: Buffer.alloc(100 * 1024 + 1, 0x61),
+        originalname: 'big.txt',
+      } as Express.Multer.File),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(attachmentsRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('creates a comment without a text file attachment', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+
+    await service.createComment(comment, captchaToken, null);
+
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(attachmentsRepository.create).not.toHaveBeenCalled();
+  });
 });

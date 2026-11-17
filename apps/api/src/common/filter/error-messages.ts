@@ -1,6 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 
 export const ERROR_MESSAGES = {
+  textFileTooLarge: 'Text file is too large',
   invalidCaptcha: 'Invalid captcha',
   invalidImage: 'Invalid image',
   internalServerError: 'Internal server error',

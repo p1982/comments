@@ -34,6 +34,7 @@ class CommentsServices extends AbstractApiServices {
   createComment(
     comment: CommentsSchema,
     image?: File,
+    textFile?: File,
   ): Promise<AxiosResponse<CreateCommentResponse>> {
     const body = new FormData();
     body.append('fullName', comment.fullName);
@@ -43,6 +44,7 @@ class CommentsServices extends AbstractApiServices {
     if (comment.homepage) body.append('homepage', comment.homepage);
     if (comment.parentId) body.append('parentId', comment.parentId);
     if (image) body.append('image', image);
+    if (textFile) body.append('textFile', textFile);
     return this.post(ENDPOINTS.COMMENTS, body);
   }
 }

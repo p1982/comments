@@ -13,6 +13,7 @@
     "cancel": "Cancel",
     "captchaLabel": "Code from the image",
     "imageLabel": "JPG, PNG or GIF image",
+    "textFileLabel": "TXT file up to 100 KB",
     "nameRequired": "Name is required",
     "messageRequired": "Message is required"
   }
