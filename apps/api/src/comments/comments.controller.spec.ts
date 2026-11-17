@@ -32,7 +32,7 @@ describe('CommentsController', () => {
 
     await controller.createComment({} as RequestWithUser, body);
 
-    expect(commentsService.createComment).toHaveBeenCalledWith(body, null, null);
+    expect(commentsService.createComment).toHaveBeenCalledWith(body, null, null, undefined);
   });
 
   it('passes the signed-in user and captcha cookie through', async () => {
@@ -44,7 +44,12 @@ describe('CommentsController', () => {
       body,
     );
 
-    expect(commentsService.createComment).toHaveBeenCalledWith(body, 'signed-token', user);
+    expect(commentsService.createComment).toHaveBeenCalledWith(
+      body,
+      'signed-token',
+      user,
+      undefined,
+    );
   });
 
   it('passes the root id to the service', async () => {

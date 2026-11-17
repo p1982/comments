@@ -7,7 +7,7 @@ import TextField from '@mui/material/TextField';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 
 import { commentsSchema, type CommentsSchema } from '@comments/shared';
 import useCommentsStore from '@/store/comments/comments.store';
@@ -23,10 +23,12 @@ function CommentForm({ parentId }: CommentFormProps) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkHref, setLinkHref] = useState('');
   const [linkTitle, setLinkTitle] = useState('');
+  const [image, setImage] = useState<File | null>(null);
   const t = useTranslations('HomePage');
   const createComment = useCommentsStore((state) => state.createComment);
   const closeCommentForm = useCommentsStore((state) => state.closeCommentForm);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
+  const imageRef = useRef<HTMLInputElement | null>(null);
   const linkSelection = useRef({ start: 0, end: 0 });
 
   const {
@@ -107,14 +109,17 @@ function CommentForm({ parentId }: CommentFormProps) {
   };
 
   const onSubmit = async (values: CommentsSchema) => {
-    await createComment({
-      fullName: values.fullName,
-      email: values.email,
-      text: values.text,
-      captcha: values.captcha,
-      ...(values.homepage ? { homepage: values.homepage } : {}),
-      ...(parentId ? { parentId } : {}),
-    });
+    await createComment(
+      {
+        fullName: values.fullName,
+        email: values.email,
+        text: values.text,
+        captcha: values.captcha,
+        ...(values.homepage ? { homepage: values.homepage } : {}),
+        ...(parentId ? { parentId } : {}),
+      },
+      image ?? undefined,
+    );
 
     const message = useCommentsStore.getState().error;
 
@@ -124,6 +129,8 @@ function CommentForm({ parentId }: CommentFormProps) {
     }
 
     reset();
+    setImage(null);
+    if (imageRef.current) imageRef.current.value = '';
     closeCommentForm();
     toast.success('Comment created successfully');
     setPreview(null);
@@ -194,6 +201,22 @@ function CommentForm({ parentId }: CommentFormProps) {
           />
           <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
             {errors.homepage?.message}
+          </Box>
+        </Box>
+        <Box>
+          <Box
+            component="input"
+            type="file"
+            accept="image/jpeg,image/png,image/gif"
+            aria-label={t('imageLabel')}
+            ref={imageRef}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              setImage(event.target.files?.[0] ?? null);
+            }}
+            sx={{ display: 'block', width: '100%' }}
+          />
+          <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
+            {image?.name}
           </Box>
         </Box>
         <Box>

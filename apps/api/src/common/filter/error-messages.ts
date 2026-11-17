@@ -2,6 +2,7 @@ import { HttpStatus } from '@nestjs/common';
 
 export const ERROR_MESSAGES = {
   invalidCaptcha: 'Invalid captcha',
+  invalidImage: 'Invalid image',
   internalServerError: 'Internal server error',
   unknownException: 'Unknown exception',
   unauthorized: 'Unauthorized',

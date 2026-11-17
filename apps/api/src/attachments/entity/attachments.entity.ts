@@ -16,10 +16,10 @@ export class AttachmentsEntity extends SoftDeleteTableEntity {
   file_type!: string;
 
   @Column({ name: 'mime_type', type: 'varchar', length: 50 })
-  mimeType!: number;
+  mimeType!: string;
 
   @Column({ name: 'file_size', type: 'int' })
-  fileSize!: string;
+  fileSize!: number;
 
   @Column({ name: 'storage_key', type: 'varchar', length: 255 })
   storageKey!: string;

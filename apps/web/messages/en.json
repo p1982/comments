@@ -12,6 +12,7 @@
     "preview": "Preview",
     "cancel": "Cancel",
     "captchaLabel": "Code from the image",
+    "imageLabel": "JPG, PNG or GIF image",
     "nameRequired": "Name is required",
     "messageRequired": "Message is required"
   }

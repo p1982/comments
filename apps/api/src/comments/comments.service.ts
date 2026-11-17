@@ -1,4 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 import {
   BadRequestException,
@@ -17,6 +19,7 @@ import type {
   CommentsResult,
   CommentsSchema,
 } from '@comments/shared';
+import { AttachmentsRepository } from '@app/attachments/repository/attachments.repository';
 import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 import { signCaptcha } from '@app/captcha/captcha.service';
 import { UsersEntity } from '@app/users/entity/users.entity';
@@ -25,6 +28,8 @@ import { UsersRepository } from '@app/users/repository/users.repository';
 import { toCommentResponse } from './dto/comment-response.dto';
 import { CommentsRepository } from './repository/comments.repository';
 import { CommentsEntity } from './entity/comments.entity';
+import { fitImage } from './helpers/fit-image';
+import { imageKind } from './helpers/image-kind';
 
 @Injectable()
 export class CommentsService {
@@ -34,6 +39,7 @@ export class CommentsService {
     private readonly usersRepository: UsersRepository,
     private readonly commentsRepository: CommentsRepository,
     private readonly configService: ConfigService,
+    private readonly attachmentsRepository: AttachmentsRepository,
   ) {}
 
   async getCommentsByRootId(rootId: string): Promise<CommentsResult> {
@@ -43,6 +49,7 @@ export class CommentsService {
       if (!comments) {
         throw new NotFoundException(ERROR_MESSAGES.notFound);
       }
+
       const childrenComments = await this.commentsRepository.findByRootId(rootId);
       return {
         data: childrenComments.map((comment: CommentsEntity) =>
@@ -84,8 +91,13 @@ export class CommentsService {
     comment: CommentsSchema,
     captchaToken: string | null,
     user: UsersEntity | null,
+    image?: Express.Multer.File,
   ): Promise<CommentResponse> {
-    this.logger.log(`Creating comment for ${comment.fullName}`);
+    this.logger.log(
+      image
+        ? `Creating comment for ${comment.fullName} with ${image.originalname}`
+        : `Creating comment for ${comment.fullName}`,
+    );
     try {
       const secret = this.configService.getOrThrow<string>('CAPTCHA_SECRET');
       const expected = signCaptcha(comment.captcha, secret);
@@ -95,6 +107,7 @@ export class CommentsService {
       if (!matches) {
         throw new BadRequestException(ERROR_MESSAGES.invalidCaptcha);
       }
+
       return await this.dataSource.transaction(async (manager) => {
         const findUser = await this.usersRepository.findByEmail(comment.email);
         const savedUser =
@@ -135,6 +148,32 @@ export class CommentsService {
           },
           manager,
         );
+
+        if (image) {
+          const kind = imageKind(image.buffer);
+          if (!kind) {
+            throw new BadRequestException(ERROR_MESSAGES.invalidImage);
+          }
+          const imageBuffer = await fitImage(image.buffer, kind);
+          const imageId = crypto.randomUUID();
+          const storageKey = `${imageId}.${kind}`;
+          const assetsDir = join(process.cwd(), 'apps', 'api', 'assets');
+          await mkdir(assetsDir, { recursive: true });
+          await writeFile(join(assetsDir, storageKey), imageBuffer);
+          await this.attachmentsRepository.create(
+            {
+              id: imageId,
+              commentId: id,
+              fileName: image.originalname,
+              file_type: 'image',
+              mimeType: `image/${kind}`,
+              fileSize: imageBuffer.length,
+              storageKey,
+            },
+            manager,
+          );
+        }
+
         return toCommentResponse(savedComment, savedUser);
       });
     } catch (error) {

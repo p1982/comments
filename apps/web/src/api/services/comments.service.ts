@@ -31,8 +31,19 @@ class CommentsServices extends AbstractApiServices {
     return this.get(`${ENDPOINTS.COMMENTS}/${rootId}`);
   }
 
-  createComment(comment: CommentsSchema): Promise<AxiosResponse<CreateCommentResponse>> {
-    return this.post(ENDPOINTS.COMMENTS, comment);
+  createComment(
+    comment: CommentsSchema,
+    image?: File,
+  ): Promise<AxiosResponse<CreateCommentResponse>> {
+    const body = new FormData();
+    body.append('fullName', comment.fullName);
+    body.append('email', comment.email);
+    body.append('text', comment.text);
+    body.append('captcha', comment.captcha);
+    if (comment.homepage) body.append('homepage', comment.homepage);
+    if (comment.parentId) body.append('parentId', comment.parentId);
+    if (image) body.append('image', image);
+    return this.post(ENDPOINTS.COMMENTS, body);
   }
 }
 
