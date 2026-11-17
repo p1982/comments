@@ -16,7 +16,8 @@
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
     "src/**/*.e2e-spec.ts",
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "src/test/**/*.ts"
   ],
   "references": [
     {

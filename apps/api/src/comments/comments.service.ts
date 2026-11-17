@@ -11,6 +11,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DataSource } from 'typeorm';
 
 import type {
@@ -30,6 +31,7 @@ import { CommentsRepository } from './repository/comments.repository';
 import { CommentsEntity } from './entity/comments.entity';
 import { fitImage } from './helpers/fit-image';
 import { imageKind } from './helpers/image-kind';
+import { COMMENT_CREATED, CommentCreatedEvent } from './events/comment-created.event';
 
 @Injectable()
 export class CommentsService {
@@ -40,6 +42,7 @@ export class CommentsService {
     private readonly commentsRepository: CommentsRepository,
     private readonly configService: ConfigService,
     private readonly attachmentsRepository: AttachmentsRepository,
+    private readonly events: EventEmitter2,
   ) {}
 
   async getCommentsByRootId(rootId: string): Promise<CommentsResult> {
@@ -109,7 +112,7 @@ export class CommentsService {
         throw new BadRequestException(ERROR_MESSAGES.invalidCaptcha);
       }
 
-      return await this.dataSource.transaction(async (manager) => {
+      const response = await this.dataSource.transaction(async (manager) => {
         const findUser = await this.usersRepository.findByEmail(comment.email);
         const savedUser =
           user ??
@@ -207,6 +210,8 @@ export class CommentsService {
 
         return toCommentResponse(commentWithAttachments, savedUser);
       });
+      this.events.emit(COMMENT_CREATED, new CommentCreatedEvent(response));
+      return response;
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;

@@ -6,6 +6,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { CaptchasModule } from '@app/captcha/captcha.module';
 import { CommentsModule } from '@app/comments/comments.module';
@@ -47,6 +48,7 @@ import { GlobalExceptionFilter } from '../common/filter/global-exception.filter'
       inject: [ConfigService],
       useFactory: getDataSource,
     }),
+    EventEmitterModule.forRoot(),
     CommentsModule,
     UsersModule,
     CaptchasModule,

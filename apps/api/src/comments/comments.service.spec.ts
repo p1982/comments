@@ -21,6 +21,7 @@ import type { EntityManager } from 'typeorm';
 import type { UsersEntity } from '@app/users/entity/users.entity';
 
 import { CommentsService } from './comments.service';
+import { COMMENT_CREATED, CommentCreatedEvent } from './events/comment-created.event';
 
 const captchaSecret = 'test-captcha-secret';
 const captcha = 'AB12C';
@@ -47,12 +48,14 @@ describe('CommentsService', () => {
   };
   const configService = { getOrThrow: jest.fn(() => captchaSecret) };
   const attachmentsRepository = { create: jest.fn() };
+  const events = { emit: jest.fn() };
   const service = new CommentsService(
     dataSource as never,
     usersRepository as never,
     commentsRepository as never,
     configService as never,
     attachmentsRepository as never,
+    events as never,
   );
   const comment = {
     fullName: 'Ann',
@@ -357,6 +360,7 @@ describe('CommentsService', () => {
       BadRequestException,
     );
     expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(events.emit).not.toHaveBeenCalled();
   });
 
   it('turns a failed transaction into an internal server error', async () => {
@@ -365,6 +369,24 @@ describe('CommentsService', () => {
     await expect(service.createComment(comment, captchaToken, null)).rejects.toBeInstanceOf(
       InternalServerErrorException,
     );
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+
+  it('emits comment.created after a successful create', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+
+    const response = await service.createComment(comment, captchaToken, null);
+
+    expect(events.emit).toHaveBeenCalledWith(COMMENT_CREATED, expect.any(CommentCreatedEvent));
+    const event = events.emit.mock.calls[0]?.[1] as CommentCreatedEvent;
+    expect(event.comment).toEqual(response);
   });
 
   it('writes a fitted image into assets', async () => {
