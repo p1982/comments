@@ -404,6 +404,33 @@ describe('CommentsService', () => {
     );
   });
 
+  it('shrinks a large image to at most 320x240 before writing it', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+    const png = await sharp({
+      create: { width: 800, height: 600, channels: 3, background: { r: 10, g: 20, b: 30 } },
+    })
+      .png()
+      .toBuffer();
+
+    await service.createComment(comment, captchaToken, null, {
+      buffer: png,
+      originalname: 'wide.png',
+    } as Express.Multer.File);
+
+    const written = jest.mocked(writeFile).mock.calls[0]?.[1] as Buffer;
+    const meta = await sharp(written).metadata();
+
+    expect(meta.width).toBe(320);
+    expect(meta.height).toBe(240);
+  });
+
   it('stores a text file of 100 KB', async () => {
     const savedUser = {
       id: 'user-1',
@@ -450,9 +477,33 @@ describe('CommentsService', () => {
         buffer: Buffer.alloc(100 * 1024 + 1, 0x61),
         originalname: 'big.txt',
       } as Express.Multer.File),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toMatchObject({
+      response: { message: 'Text file is too large' },
+    });
     expect(writeFile).not.toHaveBeenCalled();
     expect(attachmentsRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a text file that contains a null byte', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+    const text = Buffer.from('hello\0world');
+
+    await expect(
+      service.createComment(comment, captchaToken, null, undefined, {
+        buffer: text,
+        originalname: 'binary.txt',
+      } as Express.Multer.File),
+    ).rejects.toMatchObject({
+      response: { message: 'Text file is too large' },
+    });
+    expect(writeFile).not.toHaveBeenCalled();
   });
 
   it('creates a comment without a text file attachment', async () => {
