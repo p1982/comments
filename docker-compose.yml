@@ -3,8 +3,6 @@ services:
     image: postgres:16-alpine
     container_name: comments-postgres
     restart: unless-stopped
-    ports:
-      - '5432:5432'
     environment:
       POSTGRES_USER: comments
       POSTGRES_PASSWORD: comments
@@ -17,5 +15,54 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: comments-api
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      API_VERSION: '1'
+      CORS_ORIGIN: http://localhost:3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: comments
+      DB_PASSWORD: comments
+      DB_NAME: comments
+      DB_SYNC: 'true'
+      DB_LOGGING: 'false'
+      JWT_SECRET: secret
+      CAPTCHA_SECRET: secret
+      NX_READY_SIGNAL_SOCKET: 'false'
+    volumes:
+      - api_assets:/app/apps/api/assets
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        API_BASE_URL: http://localhost:3001
+        API_VERSION: '1'
+    container_name: comments-web
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   postgres_data:
+  api_assets:

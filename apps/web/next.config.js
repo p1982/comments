@@ -24,6 +24,7 @@ const withNextIntl = createNextIntlPlugin(resolveI18nPath());
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   compiler: {
     styledComponents: true,
   },
