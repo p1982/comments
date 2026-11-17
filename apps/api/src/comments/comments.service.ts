@@ -92,6 +92,7 @@ export class CommentsService {
     captchaToken: string | null,
     user: UsersEntity | null,
     image?: Express.Multer.File,
+    textFile?: Express.Multer.File,
   ): Promise<CommentResponse> {
     this.logger.log(
       image
@@ -148,6 +149,7 @@ export class CommentsService {
           },
           manager,
         );
+        const assetsDir = join(process.cwd(), 'apps', 'api', 'assets');
 
         if (image) {
           const kind = imageKind(image.buffer);
@@ -157,7 +159,7 @@ export class CommentsService {
           const imageBuffer = await fitImage(image.buffer, kind);
           const imageId = crypto.randomUUID();
           const storageKey = `${imageId}.${kind}`;
-          const assetsDir = join(process.cwd(), 'apps', 'api', 'assets');
+
           await mkdir(assetsDir, { recursive: true });
           await writeFile(join(assetsDir, storageKey), imageBuffer);
           await this.attachmentsRepository.create(
@@ -168,6 +170,29 @@ export class CommentsService {
               file_type: 'image',
               mimeType: `image/${kind}`,
               fileSize: imageBuffer.length,
+              storageKey,
+            },
+            manager,
+          );
+        }
+
+        if (textFile) {
+          const MAX_TEXT_FILE = 100 * 1024;
+          if (textFile.buffer.length > MAX_TEXT_FILE || textFile.buffer.includes(0)) {
+            throw new BadRequestException(ERROR_MESSAGES.textFileTooLarge);
+          }
+          const textId = crypto.randomUUID();
+          const storageKey = `${textId}.txt`;
+          await mkdir(assetsDir, { recursive: true });
+          await writeFile(join(assetsDir, storageKey), textFile.buffer);
+          await this.attachmentsRepository.create(
+            {
+              id: textId,
+              commentId: id,
+              fileName: textFile.originalname,
+              file_type: 'text',
+              mimeType: 'text/plain',
+              fileSize: textFile.buffer.length,
               storageKey,
             },
             manager,

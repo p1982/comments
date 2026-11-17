@@ -32,7 +32,13 @@ describe('CommentsController', () => {
 
     await controller.createComment({} as RequestWithUser, body);
 
-    expect(commentsService.createComment).toHaveBeenCalledWith(body, null, null, undefined);
+    expect(commentsService.createComment).toHaveBeenCalledWith(
+      body,
+      null,
+      null,
+      undefined,
+      undefined,
+    );
   });
 
   it('passes the signed-in user and captcha cookie through', async () => {
@@ -49,6 +55,22 @@ describe('CommentsController', () => {
       'signed-token',
       user,
       undefined,
+      undefined,
+    );
+  });
+
+  it('passes the text file through', async () => {
+    const textFile = { originalname: 'note.txt' } as Express.Multer.File;
+    commentsService.createComment.mockResolvedValue({ id: '1' });
+
+    await controller.createComment({} as RequestWithUser, body, { textFile: [textFile] });
+
+    expect(commentsService.createComment).toHaveBeenCalledWith(
+      body,
+      null,
+      null,
+      undefined,
+      textFile,
     );
   });
 
