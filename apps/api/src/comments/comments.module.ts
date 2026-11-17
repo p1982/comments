@@ -13,6 +13,8 @@ import { CommentsEntity } from './entity/comments.entity';
 import { CommentsController } from './comments.controller';
 import { CommentCreatedListener } from './listeners/comment-created.listener';
 import { CommentsGateway } from './gateway/comments.gateway';
+import { CommentJobProcessor } from './queue/comment-job.processor';
+import { CommentQueueService } from './queue/comment-queue.service';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { CommentsGateway } from './gateway/comments.gateway';
     AttachmentsRepository,
     CommentCreatedListener,
     CommentsGateway,
+    CommentJobProcessor,
+    CommentQueueService,
   ],
 })
 export class CommentsModule {}

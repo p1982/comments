@@ -46,9 +46,13 @@ describe('CommentsService', () => {
     findAll: jest.fn(),
     findByRootId: jest.fn(),
   };
-  const configService = { getOrThrow: jest.fn(() => captchaSecret) };
+  const configService = {
+    getOrThrow: jest.fn(() => captchaSecret),
+    get: jest.fn((_key: string, defaultValue?: string) => defaultValue),
+  };
   const attachmentsRepository = { create: jest.fn() };
   const events = { emit: jest.fn() };
+  const commentQueueService = { enqueue: jest.fn() };
   const service = new CommentsService(
     dataSource as never,
     usersRepository as never,
@@ -56,7 +60,17 @@ describe('CommentsService', () => {
     configService as never,
     attachmentsRepository as never,
     events as never,
+    commentQueueService as never,
   );
+
+  const setQueueEnabled = (enabled: boolean) => {
+    configService.get.mockImplementation((key: string, defaultValue?: string) => {
+      if (key === 'COMMENT_QUEUE_ENABLED') {
+        return enabled ? 'true' : 'false';
+      }
+      return defaultValue;
+    });
+  };
   const comment = {
     fullName: 'Ann',
     email: 'ann@example.com',
@@ -82,6 +96,8 @@ describe('CommentsService', () => {
     commentsInTransaction.findOne.mockResolvedValue(savedComment);
     jest.spyOn(crypto, 'randomUUID').mockReturnValue(savedComment.id);
     usersRepository.findByEmail.mockResolvedValue(null);
+    setQueueEnabled(false);
+    configService.getOrThrow.mockReturnValue(captchaSecret);
   });
 
   it('creates a user inside the transaction when the email is unknown', async () => {
@@ -361,6 +377,7 @@ describe('CommentsService', () => {
     );
     expect(dataSource.transaction).not.toHaveBeenCalled();
     expect(events.emit).not.toHaveBeenCalled();
+    expect(commentQueueService.enqueue).not.toHaveBeenCalled();
   });
 
   it('turns a failed transaction into an internal server error', async () => {
@@ -370,9 +387,10 @@ describe('CommentsService', () => {
       InternalServerErrorException,
     );
     expect(events.emit).not.toHaveBeenCalled();
+    expect(commentQueueService.enqueue).not.toHaveBeenCalled();
   });
 
-  it('emits comment.created after a successful create', async () => {
+  it('emits comment.created after a successful sync create', async () => {
     const savedUser = {
       id: 'user-1',
       fullName: 'Ann',
@@ -387,6 +405,64 @@ describe('CommentsService', () => {
     expect(events.emit).toHaveBeenCalledWith(COMMENT_CREATED, expect.any(CommentCreatedEvent));
     const event = events.emit.mock.calls[0]?.[1] as CommentCreatedEvent;
     expect(event.comment).toEqual(response);
+    expect(commentQueueService.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('enqueues image processing and comment.created when the queue is enabled', async () => {
+    setQueueEnabled(true);
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+    const png = await sharp({
+      create: { width: 10, height: 10, channels: 3, background: { r: 0, g: 0, b: 0 } },
+    })
+      .png()
+      .toBuffer();
+
+    const response = await service.createComment(comment, captchaToken, null, {
+      buffer: png,
+      originalname: 'photo.png',
+    } as Express.Multer.File);
+
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(attachmentsRepository.create).not.toHaveBeenCalled();
+    expect(events.emit).not.toHaveBeenCalled();
+    expect(commentQueueService.enqueue).toHaveBeenCalledWith({
+      type: 'process-image',
+      commentId: response.id,
+      fileName: 'photo.png',
+      buffer: png,
+    });
+    expect(commentQueueService.enqueue).toHaveBeenCalledWith({
+      type: 'comment-created',
+      comment: response,
+    });
+  });
+
+  it('enqueues only comment.created when the queue is enabled and there is no image', async () => {
+    setQueueEnabled(true);
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+
+    const response = await service.createComment(comment, captchaToken, null);
+
+    expect(events.emit).not.toHaveBeenCalled();
+    expect(commentQueueService.enqueue).toHaveBeenCalledTimes(1);
+    expect(commentQueueService.enqueue).toHaveBeenCalledWith({
+      type: 'comment-created',
+      comment: response,
+    });
   });
 
   it('writes a fitted image into assets', async () => {
