@@ -1,4 +1,5 @@
 import { ENDPOINTS } from '../endpoints/endpoints.js';
+import { ImageKind } from '../image-kind/image-kind.js';
 import { getApiUrl, getApiVersion, shared } from '../index.js';
 
 describe('shared package', () => {
@@ -22,6 +23,9 @@ describe('shared package', () => {
     expect(ENDPOINTS.REFRESH).toBe('/auth/refresh');
     expect(ENDPOINTS.COMMENTS).toBe('/comments');
     expect(ENDPOINTS.CAPTCHA).toBe('/captcha');
+    expect(ImageKind.JPEG).toBe('jpeg');
+    expect(ImageKind.PNG).toBe('png');
+    expect(ImageKind.GIF).toBe('gif');
   });
 
   it('reads the API version from the public env, then the server env', () => {

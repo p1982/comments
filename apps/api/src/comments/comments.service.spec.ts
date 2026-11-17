@@ -2,13 +2,20 @@ jest.mock('@nestjs/config', () => ({
   ConfigService: class ConfigService {},
 }));
 
+jest.mock('node:fs/promises', () => ({
+  mkdir: jest.fn(),
+  writeFile: jest.fn(),
+}));
+
 import { createHmac } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
 
 import {
   BadRequestException,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import sharp from 'sharp';
 import type { EntityManager } from 'typeorm';
 
 import type { UsersEntity } from '@app/users/entity/users.entity';
@@ -36,11 +43,13 @@ describe('CommentsService', () => {
     findByRootId: jest.fn(),
   };
   const configService = { getOrThrow: jest.fn(() => captchaSecret) };
+  const attachmentsRepository = { create: jest.fn() };
   const service = new CommentsService(
     dataSource as never,
     usersRepository as never,
     commentsRepository as never,
     configService as never,
+    attachmentsRepository as never,
   );
   const comment = {
     fullName: 'Ann',
@@ -347,6 +356,43 @@ describe('CommentsService', () => {
 
     await expect(service.createComment(comment, captchaToken, null)).rejects.toBeInstanceOf(
       InternalServerErrorException,
+    );
+  });
+
+  it('writes a fitted image into assets', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    usersRepository.create.mockResolvedValue(savedUser);
+    commentsRepository.create.mockResolvedValue(savedComment);
+    const png = await sharp({
+      create: { width: 10, height: 10, channels: 3, background: { r: 0, g: 0, b: 0 } },
+    })
+      .png()
+      .toBuffer();
+
+    await service.createComment(comment, captchaToken, null, {
+      buffer: png,
+      originalname: 'photo.png',
+    } as Express.Multer.File);
+
+    expect(mkdir).toHaveBeenCalledWith(expect.stringMatching(/apps\/api\/assets$/), {
+      recursive: true,
+    });
+    expect(writeFile).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`apps/api/assets/${savedComment.id}\\.png$`)),
+      expect.any(Buffer),
+    );
+    expect(attachmentsRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storageKey: `${savedComment.id}.png`,
+        fileName: 'photo.png',
+        mimeType: 'image/png',
+      }),
+      manager,
     );
   });
 });

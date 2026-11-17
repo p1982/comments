@@ -34,7 +34,7 @@ interface CommentsState {
   commentTarget: CommentTarget | null;
   fetchComments: (query?: GetCommentsQuery) => Promise<void>;
   fetchChildrenComments: (rootId: string) => Promise<void>;
-  createComment: (comment: CommentsSchema) => Promise<void>;
+  createComment: (comment: CommentsSchema, image?: File) => Promise<void>;
   openRootForm: () => void;
   openReplyForm: (parentId: string, rootId: string) => void;
   closeCommentForm: () => void;
@@ -116,11 +116,11 @@ const useCommentsStore = create<CommentsState>()(
           set({ isLoading: false });
         }
       },
-      createComment: async (comment: CommentsSchema) => {
+      createComment: async (comment: CommentsSchema, image?: File) => {
         const rootId = comment.parentId ? (get().commentTarget?.rootId ?? comment.parentId) : null;
         set({ isLoading: true, error: null });
         try {
-          await commentsService.createComment(comment);
+          await commentsService.createComment(comment, image);
           if (rootId) {
             await get().fetchChildrenComments(rootId);
             return;

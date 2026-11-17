@@ -12,6 +12,7 @@
     "preview": "Перегляд",
     "cancel": "Скасувати",
     "captchaLabel": "Код з картинки",
+    "imageLabel": "Картинка JPG, PNG або GIF",
     "nameRequired": "Імʼя обовʼязкове",
     "messageRequired": "Повідомлення обовʼязкове"
   }

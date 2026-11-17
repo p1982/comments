@@ -51,8 +51,32 @@ describe('commentsService', () => {
       captcha: 'AB12C',
     };
 
-    await expect(commentsService.createComment(comment)).resolves.toBe(response);
-    expect(post).toHaveBeenCalledWith(ENDPOINTS.COMMENTS, comment, undefined);
+    const image = new File(['png'], 'photo.png', { type: 'image/png' });
+
+    await expect(
+      commentsService.createComment({ ...comment, parentId: 'parent-1' }, image),
+    ).resolves.toBe(response);
+
+    const body = post.mock.calls[0]?.[1] as FormData;
+    expect(post).toHaveBeenCalledWith(ENDPOINTS.COMMENTS, expect.any(FormData), undefined);
+    expect(body.get('fullName')).toBe(comment.fullName);
+    expect(body.get('email')).toBe(comment.email);
+    expect(body.get('text')).toBe(comment.text);
+    expect(body.get('captcha')).toBe(comment.captcha);
+    expect(body.get('homepage')).toBe(comment.homepage);
+    expect(body.get('parentId')).toBe('parent-1');
+    expect(body.get('image')).toBe(image);
+
+    await commentsService.createComment({
+      fullName: comment.fullName,
+      email: comment.email,
+      text: comment.text,
+      captcha: comment.captcha,
+    });
+    const plain = post.mock.calls[1]?.[1] as FormData;
+    expect(plain.get('homepage')).toBeNull();
+    expect(plain.get('parentId')).toBeNull();
+    expect(plain.get('image')).toBeNull();
 
     post.mockRestore();
   });
