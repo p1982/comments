@@ -26,19 +26,7 @@ export class CommentsRepository {
     this.logger.debug(`Finding comments by root id: ${rootId}`);
     return await this.commentsRepository.find({
       where: { rootId, parentId: Not(IsNull()) },
-      select: {
-        id: true,
-        text: true,
-        createdAt: true,
-        parentId: true,
-        user: {
-          id: true,
-          fullName: true,
-          email: true,
-          homepage: true,
-        },
-      },
-      relations: { user: true },
+      relations: { user: true, attachments: true },
       order: { createdAt: 'ASC', id: 'ASC' },
     });
   }
@@ -51,7 +39,7 @@ export class CommentsRepository {
       where: {
         parentId: IsNull(),
       },
-      relations: { user: true },
+      relations: { user: true, attachments: true },
       order:
         query.sort === 'fullName'
           ? { user: { fullName: direction }, createdAt: direction, id: direction }
@@ -65,13 +53,21 @@ export class CommentsRepository {
 
   async findById(id: string): Promise<CommentsEntity | null> {
     this.logger.debug(`Finding comment by id: ${id}`);
-    return await this.commentsRepository.findOne({ where: { id } });
+    return await this.commentsRepository.findOne({
+      where: { id },
+      relations: { user: true, attachments: true },
+    });
   }
 
   async create(comment: CreateCommentData, manager: EntityManager): Promise<CommentsEntity> {
     this.logger.debug(comment);
     const comments = manager.getRepository(CommentsEntity);
     const saved = await comments.save(comments.create(comment));
-    return (await comments.findOne({ where: { id: saved.id } })) ?? saved;
+    return (
+      (await comments.findOne({
+        where: { id: saved.id },
+        relations: { attachments: true },
+      })) ?? saved
+    );
   }
 }

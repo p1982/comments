@@ -29,7 +29,10 @@ const captchaToken = createHmac('sha256', captchaSecret)
   .digest('hex');
 
 describe('CommentsService', () => {
-  const manager = { id: 'manager' } as unknown as EntityManager;
+  const commentsInTransaction = { findOne: jest.fn() };
+  const manager = {
+    getRepository: jest.fn(() => commentsInTransaction),
+  } as unknown as EntityManager;
   const dataSource = {
     transaction: jest.fn(async (callback: (current: EntityManager) => Promise<unknown>) => {
       return await callback(manager);
@@ -65,6 +68,7 @@ describe('CommentsService', () => {
     userId: 'user-1',
     text: 'Hello',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    attachments: [],
   };
 
   beforeEach(() => {
@@ -72,6 +76,7 @@ describe('CommentsService', () => {
     dataSource.transaction.mockImplementation(async (callback) => {
       return await callback(manager);
     });
+    commentsInTransaction.findOne.mockResolvedValue(savedComment);
     jest.spyOn(crypto, 'randomUUID').mockReturnValue(savedComment.id);
     usersRepository.findByEmail.mockResolvedValue(null);
   });
@@ -94,6 +99,7 @@ describe('CommentsService', () => {
       email: 'ann@example.com',
       homepage: 'https://ann.example',
       parentId: null,
+      attachments: [],
     });
     expect(usersRepository.findByEmail).toHaveBeenCalledWith('ann@example.com');
     expect(usersRepository.create).toHaveBeenCalledWith(
@@ -275,6 +281,7 @@ describe('CommentsService', () => {
           email: 'ann@example.com',
           homepage: 'https://ann.example',
           parentId: null,
+          attachments: [],
         },
       ],
       total: 1,
@@ -310,6 +317,7 @@ describe('CommentsService', () => {
           email: 'ann@example.com',
           homepage: 'https://ann.example',
           parentId: savedComment.id,
+          attachments: [],
         },
       ],
       status: 'success',

@@ -1,6 +1,9 @@
+import { join } from 'node:path';
+
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 
@@ -9,7 +12,7 @@ import { CookiesName } from '@comments/shared';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 
   const apiVersion = config.get<string>('API_VERSION', '1');
@@ -30,6 +33,7 @@ async function bootstrap() {
     }),
   );
   app.use(cookieParser());
+  app.useStaticAssets(join(process.cwd(), 'apps', 'api', 'assets'), { prefix: '/assets/' });
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Comments API')
