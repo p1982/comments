@@ -37,6 +37,7 @@ services:
       DB_LOGGING: 'false'
       JWT_SECRET: secret
       CAPTCHA_SECRET: secret
+      COMMENT_QUEUE_ENABLED: 'true'
       NX_READY_SIGNAL_SOCKET: 'false'
     volumes:
       - api_assets:/app/apps/api/assets

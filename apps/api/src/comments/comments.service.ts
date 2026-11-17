@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 
 import type {
   CommentResponse,
@@ -32,6 +32,7 @@ import { CommentsEntity } from './entity/comments.entity';
 import { fitImage } from './helpers/fit-image';
 import { imageKind } from './helpers/image-kind';
 import { COMMENT_CREATED, CommentCreatedEvent } from './events/comment-created.event';
+import { CommentQueueService } from './queue/comment-queue.service';
 
 @Injectable()
 export class CommentsService {
@@ -43,7 +44,12 @@ export class CommentsService {
     private readonly configService: ConfigService,
     private readonly attachmentsRepository: AttachmentsRepository,
     private readonly events: EventEmitter2,
+    private readonly commentQueueService: CommentQueueService,
   ) {}
+
+  private isCommentQueueEnabled(): boolean {
+    return this.configService.get<string>('COMMENT_QUEUE_ENABLED', 'false') === 'true';
+  }
 
   async getCommentsByRootId(rootId: string): Promise<CommentsResult> {
     this.logger.log(`Getting children comments for root id: ${rootId}`);
@@ -112,6 +118,9 @@ export class CommentsService {
         throw new BadRequestException(ERROR_MESSAGES.invalidCaptcha);
       }
 
+      const useQueue = this.isCommentQueueEnabled();
+      let pendingImage: { buffer: Buffer; fileName: string } | undefined;
+
       const response = await this.dataSource.transaction(async (manager) => {
         const findUser = await this.usersRepository.findByEmail(comment.email);
         const savedUser =
@@ -159,24 +168,12 @@ export class CommentsService {
           if (!kind) {
             throw new BadRequestException(ERROR_MESSAGES.invalidImage);
           }
-          const imageBuffer = await fitImage(image.buffer, kind);
-          const imageId = crypto.randomUUID();
-          const storageKey = `${imageId}.${kind}`;
 
-          await mkdir(assetsDir, { recursive: true });
-          await writeFile(join(assetsDir, storageKey), imageBuffer);
-          await this.attachmentsRepository.create(
-            {
-              id: imageId,
-              commentId: id,
-              fileName: image.originalname,
-              file_type: 'image',
-              mimeType: `image/${kind}`,
-              fileSize: imageBuffer.length,
-              storageKey,
-            },
-            manager,
-          );
+          if (useQueue) {
+            pendingImage = { buffer: image.buffer, fileName: image.originalname };
+          } else {
+            await this.saveFittedImage(image, id, kind, assetsDir, manager);
+          }
         }
 
         if (textFile) {
@@ -210,7 +207,24 @@ export class CommentsService {
 
         return toCommentResponse(commentWithAttachments, savedUser);
       });
-      this.events.emit(COMMENT_CREATED, new CommentCreatedEvent(response));
+
+      if (useQueue) {
+        if (pendingImage) {
+          this.commentQueueService.enqueue({
+            type: 'process-image',
+            commentId: response.id,
+            fileName: pendingImage.fileName,
+            buffer: pendingImage.buffer,
+          });
+        }
+        this.commentQueueService.enqueue({
+          type: 'comment-created',
+          comment: response,
+        });
+      } else {
+        this.events.emit(COMMENT_CREATED, new CommentCreatedEvent(response));
+      }
+
       return response;
     } catch (error) {
       if (error instanceof HttpException) {
@@ -219,5 +233,32 @@ export class CommentsService {
       this.logger.error(error);
       throw new InternalServerErrorException(ERROR_MESSAGES.internalServerError);
     }
+  }
+
+  private async saveFittedImage(
+    image: Express.Multer.File,
+    commentId: string,
+    kind: NonNullable<ReturnType<typeof imageKind>>,
+    assetsDir: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    const imageBuffer = await fitImage(image.buffer, kind);
+    const imageId = crypto.randomUUID();
+    const storageKey = `${imageId}.${kind}`;
+
+    await mkdir(assetsDir, { recursive: true });
+    await writeFile(join(assetsDir, storageKey), imageBuffer);
+    await this.attachmentsRepository.create(
+      {
+        id: imageId,
+        commentId,
+        fileName: image.originalname,
+        file_type: 'image',
+        mimeType: `image/${kind}`,
+        fileSize: imageBuffer.length,
+        storageKey,
+      },
+      manager,
+    );
   }
 }
