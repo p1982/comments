@@ -38,6 +38,7 @@ interface CommentsState {
   openRootForm: () => void;
   openReplyForm: (parentId: string, rootId: string) => void;
   closeCommentForm: () => void;
+  applyRemoteComment: (comment: CommentResponse) => void;
 }
 
 interface CommentTarget {
@@ -142,8 +143,76 @@ const useCommentsStore = create<CommentsState>()(
       closeCommentForm: () => {
         set({ commentTarget: null });
       },
-    }),
+      applyRemoteComment: (comment: CommentResponse) => {
+        const state = get();
 
+        if (comment.parentId === null) {
+          if (state.comments[comment.id]) {
+            set({
+              comments: { ...state.comments, [comment.id]: comment },
+            });
+            return;
+          }
+
+          const nextIds = (
+            state.sort === 'createdAt' && state.order === 'desc'
+              ? [comment.id, ...state.commentsIds]
+              : [...state.commentsIds, comment.id]
+          ).slice(0, state.limit);
+          const keptIds = new Set(nextIds);
+          const nextComments = Object.fromEntries(
+            Object.entries({ ...state.comments, [comment.id]: comment }).filter(([id]) =>
+              keptIds.has(id),
+            ),
+          );
+
+          set({
+            comments: nextComments,
+            commentsIds: nextIds,
+            total: state.total + 1,
+            totalPages: Math.ceil((state.total + 1) / state.limit),
+          });
+          return;
+        }
+
+        const parentId = comment.parentId;
+        const rootId = Object.keys(state.childrenComments).find((id) => {
+          const thread = state.childrenComments[id];
+          return Boolean(thread?.comments[parentId]) || thread?.rootId === parentId;
+        });
+
+        if (!rootId) {
+          return;
+        }
+
+        const thread = state.childrenComments[rootId];
+        if (!thread || thread.comments[comment.id]) {
+          if (thread?.comments[comment.id]) {
+            set({
+              childrenComments: {
+                ...state.childrenComments,
+                [rootId]: {
+                  ...thread,
+                  comments: { ...thread.comments, [comment.id]: comment },
+                },
+              },
+            });
+          }
+          return;
+        }
+
+        set({
+          childrenComments: {
+            ...state.childrenComments,
+            [rootId]: {
+              ...thread,
+              comments: { ...thread.comments, [comment.id]: comment },
+              commentsIds: [...thread.commentsIds, comment.id],
+            },
+          },
+        });
+      },
+    }),
     {
       name: 'comments-store',
       partialize: (state) => ({

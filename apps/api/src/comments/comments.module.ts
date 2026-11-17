@@ -12,6 +12,7 @@ import { CommentsService } from './comments.service';
 import { CommentsEntity } from './entity/comments.entity';
 import { CommentsController } from './comments.controller';
 import { CommentCreatedListener } from './listeners/comment-created.listener';
+import { CommentsGateway } from './gateway/comments.gateway';
 
 @Module({
   imports: [
@@ -22,6 +23,12 @@ import { CommentCreatedListener } from './listeners/comment-created.listener';
 
   controllers: [CommentsController],
 
-  providers: [CommentsService, CommentsRepository, AttachmentsRepository, CommentCreatedListener],
+  providers: [
+    CommentsService,
+    CommentsRepository,
+    AttachmentsRepository,
+    CommentCreatedListener,
+    CommentsGateway,
+  ],
 })
 export class CommentsModule {}
