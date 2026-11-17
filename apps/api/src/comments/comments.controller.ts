@@ -58,7 +58,11 @@ export class CommentsController {
     @Req() request: RequestWithUser,
     @Body(new ZodValidationPipe(commentsSchema)) body: CommentsSchema,
   ): Promise<CommentResponseDto> {
-    return this.commentsService.createComment(body, request.user ?? null);
+    return this.commentsService.createComment(
+      body,
+      request.cookies?.captcha ?? null,
+      request.user ?? null,
+    );
   }
 
   @Get()

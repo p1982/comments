@@ -14,6 +14,7 @@ const validComment = {
   email: 'user@example.com',
   homepage: 'https://example.com',
   text: 'hello',
+  captcha: 'AB12C',
 };
 
 const parse = (overrides: Partial<typeof validComment> = {}) =>
@@ -99,6 +100,38 @@ describe('commentsSchema', () => {
 
     it('rejects a parent id that is not a string', () => {
       expect(commentsSchema.safeParse({ ...validComment, parentId: 1 }).success).toBe(false);
+    });
+  });
+
+  describe('captcha', () => {
+    it('accepts a non-empty answer', () => {
+      expect(parse({ captcha: 'AB12C' }).success).toBe(true);
+    });
+
+    it('rejects an empty answer', () => {
+      const result = parse({ captcha: '   ' });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe('Captcha is required');
+      }
+    });
+
+    it('rejects a missing answer', () => {
+      const { captcha: _captcha, ...withoutCaptcha } = validComment;
+
+      expect(commentsSchema.safeParse(withoutCaptcha).success).toBe(false);
+    });
+
+    it('rejects an answer longer than 10 characters', () => {
+      const result = parse({ captcha: 'A'.repeat(11) });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe(
+          'Captcha must be less than 10 characters long',
+        );
+      }
     });
   });
 

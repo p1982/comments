@@ -38,6 +38,11 @@ export const commentsSchema = z.object({
         });
       }
     }),
+  captcha: z
+    .string()
+    .trim()
+    .min(1, { message: 'Captcha is required' })
+    .max(10, { message: 'Captcha must be less than 10 characters long' }),
 });
 
 export type CommentsSchema = z.infer<typeof commentsSchema>;

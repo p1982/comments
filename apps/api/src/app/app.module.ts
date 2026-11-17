@@ -7,8 +7,9 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER } from '@nestjs/core';
 
-import { getDataSource } from '@app/database/data-source';
+import { CaptchasModule } from '@app/captcha/captcha.module';
 import { CommentsModule } from '@app/comments/comments.module';
+import { getDataSource } from '@app/database/data-source';
 import { UsersModule } from '@app/users/users.module';
 
 import { AppController } from './app.controller';
@@ -48,6 +49,7 @@ import { GlobalExceptionFilter } from '../common/filter/global-exception.filter'
     }),
     CommentsModule,
     UsersModule,
+    CaptchasModule,
   ],
 
   controllers: [AppController],

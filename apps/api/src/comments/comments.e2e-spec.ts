@@ -1,10 +1,14 @@
+import { createHmac } from 'node:crypto';
+
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import cookieParser from 'cookie-parser';
 import { Client } from 'pg';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 
+import { CookiesName } from '@comments/shared';
 import { AppModule } from '@app/app/app.module';
 
 interface CommentBody {
@@ -15,7 +19,15 @@ interface CommentBody {
   parentId: string | null;
 }
 
+interface CommentsPage {
+  data: CommentBody[];
+}
+
 const prefix = `/api/v${process.env['API_VERSION'] ?? '1'}`;
+const captcha = 'AB12C';
+const captchaToken = createHmac('sha256', process.env['CAPTCHA_SECRET'] ?? '')
+  .update(captcha.toLowerCase())
+  .digest('hex');
 
 const ensureTestDatabase = async () => {
   const admin = new Client({
@@ -46,6 +58,7 @@ describe('comments API', () => {
     }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix(prefix.slice(1));
+    app.use(cookieParser());
     await app.init();
     dataSource = app.get(DataSource);
     await dataSource.runMigrations();
@@ -66,7 +79,11 @@ describe('comments API', () => {
     email: string;
     text: string;
     parentId?: string;
-  }) => request(server()).post(`${prefix}/comments`).send(body);
+  }) =>
+    request(server())
+      .post(`${prefix}/comments`)
+      .set('Cookie', `${CookiesName.CAPTCHA}=${captchaToken}`)
+      .send({ ...body, captcha });
 
   it('creates a root comment', async () => {
     const response = await postComment({
@@ -100,7 +117,7 @@ describe('comments API', () => {
     expect(replyBody.parentId).toBe(rootBody.id);
 
     const roots = await request(server()).get(`${prefix}/comments`).expect(200);
-    const ids = (roots.body as CommentBody[]).map((comment) => comment.id);
+    const ids = (roots.body as CommentsPage).data.map((comment) => comment.id);
     expect(ids).toContain(rootBody.id);
     expect(ids).not.toContain(replyBody.id);
   });
@@ -135,7 +152,7 @@ describe('comments API', () => {
       .get(`${prefix}/comments`)
       .query({ sort: 'fullName', order: 'asc' })
       .expect(200);
-    expect((byName.body as CommentBody[]).map((comment) => comment.fullName)).toEqual([
+    expect((byName.body as CommentsPage).data.map((comment) => comment.fullName)).toEqual([
       'Ann',
       'Mike',
       'Zoe',
@@ -145,7 +162,7 @@ describe('comments API', () => {
       .get(`${prefix}/comments`)
       .query({ sort: 'email', order: 'desc' })
       .expect(200);
-    expect((byEmail.body as CommentBody[]).map((comment) => comment.email)).toEqual([
+    expect((byEmail.body as CommentsPage).data.map((comment) => comment.email)).toEqual([
       'zoe@test.example',
       'mike@test.example',
       'ann@test.example',
@@ -159,7 +176,7 @@ describe('comments API', () => {
     );
 
     const byDate = await request(server()).get(`${prefix}/comments`).expect(200);
-    const dateIds = (byDate.body as CommentBody[]).map((comment) => comment.id);
+    const dateIds = (byDate.body as CommentsPage).data.map((comment) => comment.id);
     expect(dateIds.indexOf(newerId)).toBeLessThan(dateIds.indexOf(olderId));
   });
 
@@ -181,8 +198,8 @@ describe('comments API', () => {
       .query({ page: 2, limit: 25 })
       .expect(200);
 
-    const firstPage = page1.body as CommentBody[];
-    const secondPage = page2.body as CommentBody[];
+    const firstPage = (page1.body as CommentsPage).data;
+    const secondPage = (page2.body as CommentsPage).data;
     expect(firstPage).toHaveLength(25);
     expect(secondPage).toHaveLength(1);
     expect(firstPage.map((comment) => comment.id)).not.toContain(secondPage[0]?.id);
