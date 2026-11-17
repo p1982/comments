@@ -16,6 +16,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'html'],
   moduleNameMapper: {
     '^@app/(.*)$': '<rootDir>/src/$1',
+    '^@nestjs/event-emitter$': '<rootDir>/src/test/nestjs-event-emitter.mock.ts',
   },
   coverageProvider: 'v8',
   collectCoverage: true,
