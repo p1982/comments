@@ -32,21 +32,45 @@ Requires **Node.js 22.22.1** (see `.nvmrc`).
 ```bash
 nvm use   # or: fnm use / asdf install
 cp .env.example .env
-docker compose up -d
 npm install
 ```
+
+## Docker (DB + API + web)
+
+One command builds images and starts PostgreSQL, API, and web:
+
+```bash
+npm run docker:up
+# or: docker compose up -d --build
+```
+
+- Web → http://localhost:3000
+- API → http://localhost:3001/api/v1
+- Health → http://localhost:3001/api/v1/health
+
+Stop everything:
+
+```bash
+npm run docker:down
+```
+
+PostgreSQL in Compose listens only on the Docker network (`DB_HOST=postgres`), so it
+does not clash with a local Postgres on the host. For `nx serve` / `nx dev` point
+`.env` at your local DB (or add a host port mapping to the `postgres` service).
 
 ## Dev
 
 ```bash
-# API → http://localhost:3001/api
+npm run db:up
+
+# API → http://localhost:3001/api/v1
 npx nx serve api
 
 # Web → http://localhost:3000
 npx nx dev web
 ```
 
-Or both:
+Or both apps:
 
 ```bash
 npm run dev
