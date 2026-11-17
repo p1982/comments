@@ -17,6 +17,14 @@ export interface GetCommentsQuery {
   order?: CommentSortOrder;
 }
 
+export interface CommentAttachments {
+  id: string;
+  fileName: string;
+  fileType: 'image' | 'text';
+  mimeType: string;
+  url: string;
+}
+
 export interface CommentResponse {
   id: string;
   text: string;
@@ -25,6 +33,7 @@ export interface CommentResponse {
   email: string;
   homepage: string;
   parentId: string | null;
+  attachments: CommentAttachments[];
 }
 
 export interface CommentsResult {

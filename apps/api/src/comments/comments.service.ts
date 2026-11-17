@@ -199,7 +199,13 @@ export class CommentsService {
           );
         }
 
-        return toCommentResponse(savedComment, savedUser);
+        const commentWithAttachments =
+          (await manager.getRepository(CommentsEntity).findOne({
+            where: { id },
+            relations: { attachments: true },
+          })) ?? savedComment;
+
+        return toCommentResponse(commentWithAttachments, savedUser);
       });
     } catch (error) {
       if (error instanceof HttpException) {

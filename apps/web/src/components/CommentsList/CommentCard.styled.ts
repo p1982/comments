@@ -121,3 +121,10 @@ export const CommentText = styled(Typography)`
     white-space: pre-wrap;
   }
 `;
+
+export const AttachmentThumb = styled.img`
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+`;

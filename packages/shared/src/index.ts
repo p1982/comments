@@ -8,6 +8,7 @@ export {
   commentSortFields,
   commentSortOrders,
   type CommentResponse,
+  type CommentAttachments,
   type CommentSortField,
   type CommentSortOrder,
   type CommentsResult,

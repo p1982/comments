@@ -36,6 +36,7 @@ describe('CommentsRepository', () => {
     expect(repo.findAndCount).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { parentId: IsNull() },
+        relations: { user: true, attachments: true },
         skip: 0,
         take: 25,
         order: { createdAt: 'DESC', id: 'DESC' },
@@ -75,19 +76,7 @@ describe('CommentsRepository', () => {
     await expect(comments.findByRootId('root-1')).resolves.toEqual([]);
     expect(repo.find).toHaveBeenCalledWith({
       where: { rootId: 'root-1', parentId: Not(IsNull()) },
-      select: {
-        id: true,
-        text: true,
-        createdAt: true,
-        parentId: true,
-        user: {
-          id: true,
-          fullName: true,
-          email: true,
-          homepage: true,
-        },
-      },
-      relations: { user: true },
+      relations: { user: true, attachments: true },
       order: { createdAt: 'ASC', id: 'ASC' },
     });
   });
@@ -97,7 +86,10 @@ describe('CommentsRepository', () => {
     repo.findOne.mockResolvedValue(comment);
 
     await expect(comments.findById('1')).resolves.toBe(comment);
-    expect(repo.findOne).toHaveBeenCalledWith({ where: { id: '1' } });
+    expect(repo.findOne).toHaveBeenCalledWith({
+      where: { id: '1' },
+      relations: { user: true, attachments: true },
+    });
   });
 
   it('saves a comment through the transaction manager', async () => {
@@ -108,6 +100,10 @@ describe('CommentsRepository', () => {
     await expect(comments.create(data, manager)).resolves.toBe(saved);
     expect(repo.create).toHaveBeenCalledWith(data);
     expect(repo.save).toHaveBeenCalledWith(data);
+    expect(repo.findOne).toHaveBeenCalledWith({
+      where: { id: saved.id },
+      relations: { attachments: true },
+    });
   });
 
   it('returns the saved comment when reload finds nothing', async () => {
