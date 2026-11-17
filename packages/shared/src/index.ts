@@ -4,6 +4,7 @@ export * from './endpoints/endpoints.js';
 export * from './cookies-name/cookies-name.js';
 export * from './image-kind/image-kind.js';
 export * from './schema/index.js';
+export * from './ws-events.js';
 export {
   commentSortFields,
   commentSortOrders,

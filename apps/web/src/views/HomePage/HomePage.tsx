@@ -7,12 +7,15 @@ import CommentForm from '@/components/CommentForm/CommentForm';
 import CommentsList from '@/components/CommentsList/CommentsList';
 import Loader from '@/components/Loader/Loader';
 import useCommentsStore from '@/store/comments/comments.store';
+import { useCommentsSocket } from '@/hooks/useCommentsSocket';
 
 const HomePage = () => {
   const fetchComments = useCommentsStore((state) => state.fetchComments);
   const commentsIds = useCommentsStore((state) => state.commentsIds);
   const isLoading = useCommentsStore((state) => state.isLoading);
   const commentTarget = useCommentsStore((state) => state.commentTarget);
+
+  useCommentsSocket();
 
   useEffect(() => {
     void (async () => {
