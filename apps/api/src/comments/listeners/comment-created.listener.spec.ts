@@ -1,10 +1,12 @@
+import { Logger } from '@nestjs/common';
+
 import { COMMENT_CREATED, CommentCreatedEvent } from '../events/comment-created.event';
 import { CommentCreatedListener } from './comment-created.listener';
 
 describe('CommentCreatedListener', () => {
   it('logs the created comment id', () => {
     const listener = new CommentCreatedListener();
-    const log = jest.spyOn(listener.logger, 'log').mockImplementation();
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
     const event = new CommentCreatedEvent({
       id: '11111111-1111-1111-1111-111111111111',
       text: 'Hello',
@@ -20,5 +22,6 @@ describe('CommentCreatedListener', () => {
 
     expect(log).toHaveBeenCalledWith(`comment.created ${event.comment.id}`);
     expect(COMMENT_CREATED).toBe('comment.created');
+    log.mockRestore();
   });
 });
