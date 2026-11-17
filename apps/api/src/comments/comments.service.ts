@@ -1,10 +1,14 @@
+import { timingSafeEqual } from 'node:crypto';
+
 import {
+  BadRequestException,
   HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 
 import type {
@@ -13,9 +17,10 @@ import type {
   CommentsResult,
   CommentsSchema,
 } from '@comments/shared';
-import { UsersRepository } from '@app/users/repository/users.repository';
 import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
+import { signCaptcha } from '@app/captcha/captcha.service';
 import { UsersEntity } from '@app/users/entity/users.entity';
+import { UsersRepository } from '@app/users/repository/users.repository';
 
 import { toCommentResponse } from './dto/comment-response.dto';
 import { CommentsRepository } from './repository/comments.repository';
@@ -28,6 +33,7 @@ export class CommentsService {
     private readonly dataSource: DataSource,
     private readonly usersRepository: UsersRepository,
     private readonly commentsRepository: CommentsRepository,
+    private readonly configService: ConfigService,
   ) {}
 
   async getCommentsByRootId(rootId: string): Promise<CommentsResult> {
@@ -74,9 +80,21 @@ export class CommentsService {
     }
   }
 
-  async createComment(comment: CommentsSchema, user: UsersEntity | null): Promise<CommentResponse> {
+  async createComment(
+    comment: CommentsSchema,
+    captchaToken: string | null,
+    user: UsersEntity | null,
+  ): Promise<CommentResponse> {
     this.logger.log(`Creating comment for ${comment.fullName}`);
     try {
+      const secret = this.configService.getOrThrow<string>('CAPTCHA_SECRET');
+      const expected = signCaptcha(comment.captcha, secret);
+      const actual = Buffer.from(captchaToken ?? '');
+      const wanted = Buffer.from(expected);
+      const matches = actual.length === wanted.length && timingSafeEqual(actual, wanted);
+      if (!matches) {
+        throw new BadRequestException(ERROR_MESSAGES.invalidCaptcha);
+      }
       return await this.dataSource.transaction(async (manager) => {
         const findUser = await this.usersRepository.findByEmail(comment.email);
         const savedUser =

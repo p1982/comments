@@ -2,6 +2,9 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
+
+import { CookiesName } from '@comments/shared';
 
 import { AppModule } from './app/app.module';
 
@@ -26,12 +29,18 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.use(cookieParser());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Comments API')
     .setDescription('REST API for comments')
     .setVersion(apiVersion)
-    .addCookieAuth('access_token', { type: 'apiKey', in: 'cookie' }, 'access_token')
+    .addCookieAuth(
+      CookiesName.ACCESS_TOKEN,
+      { type: 'apiKey', in: 'cookie' },
+      CookiesName.ACCESS_TOKEN,
+    )
+    .addCookieAuth(CookiesName.CAPTCHA, { type: 'apiKey', in: 'cookie' }, CookiesName.CAPTCHA)
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document, { useGlobalPrefix: true });

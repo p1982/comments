@@ -11,6 +11,7 @@
     "submit": "Submit",
     "preview": "Preview",
     "cancel": "Cancel",
+    "captchaLabel": "Code from the image",
     "nameRequired": "Name is required",
     "messageRequired": "Message is required"
   }

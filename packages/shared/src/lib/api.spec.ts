@@ -20,6 +20,8 @@ describe('shared package', () => {
     expect(shared()).toBe('shared');
     expect(ENDPOINTS.SIGNIN).toBe('/auth/signin');
     expect(ENDPOINTS.REFRESH).toBe('/auth/refresh');
+    expect(ENDPOINTS.COMMENTS).toBe('/comments');
+    expect(ENDPOINTS.CAPTCHA).toBe('/captcha');
   });
 
   it('reads the API version from the public env, then the server env', () => {

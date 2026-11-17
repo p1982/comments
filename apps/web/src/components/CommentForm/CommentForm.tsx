@@ -43,6 +43,7 @@ function CommentForm({ parentId }: CommentFormProps) {
       fullName: '',
       email: '',
       homepage: '',
+      captcha: '',
       text: '',
       ...(parentId ? { parentId } : {}),
     },
@@ -110,6 +111,7 @@ function CommentForm({ parentId }: CommentFormProps) {
       fullName: values.fullName,
       email: values.email,
       text: values.text,
+      captcha: values.captcha,
       ...(values.homepage ? { homepage: values.homepage } : {}),
       ...(parentId ? { parentId } : {}),
     });
@@ -160,26 +162,69 @@ function CommentForm({ parentId }: CommentFormProps) {
           </>
         )}
       </Box>
-      <form onSubmit={(event) => void handleSubmit(onSubmit)(event)}>
-        <TextField fullWidth {...register('fullName')} placeholder={t('nameLabel')} />
-        {errors.fullName && <span>{errors.fullName.message}</span>}
-        <TextField fullWidth {...register('email')} placeholder={t('emailLabel')} />
-        {errors.email && <span>{errors.email.message}</span>}
-        <TextField fullWidth {...register('homepage')} placeholder={t('homepageLabel')} />
-        {errors.homepage && <span>{errors.homepage.message}</span>}
-        <TextField
-          fullWidth
-          multiline
-          rows={4}
-          {...register('text')}
-          placeholder={t('textLabel')}
-          {...textField}
-          inputRef={(node: HTMLTextAreaElement | null) => {
-            ref(node);
-            textRef.current = node;
-          }}
-        />
-        {errors.text && <span>{errors.text.message}</span>}
+      <Box component="form" onSubmit={(event) => void handleSubmit(onSubmit)(event)}>
+        <Box>
+          <TextField
+            fullWidth
+            {...register('fullName')}
+            placeholder={t('nameLabel')}
+            error={Boolean(errors.fullName)}
+          />
+          <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
+            {errors.fullName?.message}
+          </Box>
+        </Box>
+        <Box>
+          <TextField
+            fullWidth
+            {...register('email')}
+            placeholder={t('emailLabel')}
+            error={Boolean(errors.email)}
+          />
+          <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
+            {errors.email?.message}
+          </Box>
+        </Box>
+        <Box>
+          <TextField
+            fullWidth
+            {...register('homepage')}
+            placeholder={t('homepageLabel')}
+            error={Boolean(errors.homepage)}
+          />
+          <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
+            {errors.homepage?.message}
+          </Box>
+        </Box>
+        <Box>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            {...register('text')}
+            placeholder={t('textLabel')}
+            {...textField}
+            error={Boolean(errors.text)}
+            inputRef={(node: HTMLTextAreaElement | null) => {
+              ref(node);
+              textRef.current = node;
+            }}
+          />
+          <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
+            {errors.text?.message}
+          </Box>
+        </Box>
+        <Box>
+          <TextField
+            fullWidth
+            {...register('captcha')}
+            placeholder={t('captchaLabel')}
+            error={Boolean(errors.captcha)}
+          />
+          <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
+            {errors.captcha?.message}
+          </Box>
+        </Box>
         <Button variant="contained" type="submit" disabled={isSubmitting}>
           {t('submit')}
         </Button>
@@ -190,7 +235,7 @@ function CommentForm({ parentId }: CommentFormProps) {
         <Button variant="contained" type="button" onClick={closeCommentForm}>
           {t('cancel')}{' '}
         </Button>
-      </form>
+      </Box>
     </Box>
   );
 }

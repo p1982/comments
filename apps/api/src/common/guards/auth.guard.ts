@@ -11,6 +11,7 @@ export type RequestWithUser = Omit<Request, 'cookies'> & {
   user?: UsersEntity | null;
   cookies?: {
     access_token?: string;
+    captcha?: string;
   };
 };
 

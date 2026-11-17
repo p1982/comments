@@ -1,9 +1,25 @@
-import { InternalServerErrorException, NotFoundException } from '@nestjs/common';
+jest.mock('@nestjs/config', () => ({
+  ConfigService: class ConfigService {},
+}));
+
+import { createHmac } from 'node:crypto';
+
+import {
+  BadRequestException,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 
 import type { UsersEntity } from '@app/users/entity/users.entity';
 
 import { CommentsService } from './comments.service';
+
+const captchaSecret = 'test-captcha-secret';
+const captcha = 'AB12C';
+const captchaToken = createHmac('sha256', captchaSecret)
+  .update(captcha.toLowerCase())
+  .digest('hex');
 
 describe('CommentsService', () => {
   const manager = { id: 'manager' } as unknown as EntityManager;
@@ -19,16 +35,19 @@ describe('CommentsService', () => {
     findAll: jest.fn(),
     findByRootId: jest.fn(),
   };
+  const configService = { getOrThrow: jest.fn(() => captchaSecret) };
   const service = new CommentsService(
     dataSource as never,
     usersRepository as never,
     commentsRepository as never,
+    configService as never,
   );
   const comment = {
     fullName: 'Ann',
     email: 'ann@example.com',
     homepage: 'https://ann.example',
     text: 'Hello',
+    captcha,
   };
   const savedComment = {
     id: '11111111-1111-1111-1111-111111111111' as const,
@@ -58,7 +77,7 @@ describe('CommentsService', () => {
     usersRepository.create.mockResolvedValue(savedUser);
     commentsRepository.create.mockResolvedValue(savedComment);
 
-    await expect(service.createComment(comment, null)).resolves.toEqual({
+    await expect(service.createComment(comment, captchaToken, null)).resolves.toEqual({
       id: savedComment.id,
       text: 'Hello',
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -88,7 +107,7 @@ describe('CommentsService', () => {
     usersRepository.findByEmail.mockResolvedValue(existingUser);
     commentsRepository.create.mockResolvedValue({ ...savedComment, userId: 'user-9' });
 
-    await service.createComment(comment, null);
+    await service.createComment(comment, captchaToken, null);
 
     expect(usersRepository.create).not.toHaveBeenCalled();
     expect(commentsRepository.create).toHaveBeenCalledWith(
@@ -107,7 +126,7 @@ describe('CommentsService', () => {
     usersRepository.create.mockResolvedValue(savedUser);
     commentsRepository.create.mockResolvedValue(savedComment);
 
-    await service.createComment({ ...comment, homepage: undefined }, null);
+    await service.createComment({ ...comment, homepage: undefined }, captchaToken, null);
 
     expect(usersRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({ homepage: '' }),
@@ -124,7 +143,7 @@ describe('CommentsService', () => {
     } as UsersEntity;
     commentsRepository.create.mockResolvedValue(savedComment);
 
-    await service.createComment({ ...comment, homepage: undefined }, savedUser);
+    await service.createComment({ ...comment, homepage: undefined }, captchaToken, savedUser);
 
     expect(usersRepository.findByEmail).toHaveBeenCalledWith('ann@example.com');
     expect(usersRepository.create).not.toHaveBeenCalled();
@@ -159,7 +178,7 @@ describe('CommentsService', () => {
       rootId,
     });
 
-    await service.createComment({ ...comment, parentId: rootId }, savedUser);
+    await service.createComment({ ...comment, parentId: rootId }, captchaToken, savedUser);
 
     expect(commentsRepository.findById).toHaveBeenCalledWith(rootId);
     expect(commentsRepository.create).toHaveBeenCalledWith(
@@ -194,7 +213,7 @@ describe('CommentsService', () => {
       rootId,
     });
 
-    await service.createComment({ ...comment, parentId: replyId }, savedUser);
+    await service.createComment({ ...comment, parentId: replyId }, captchaToken, savedUser);
 
     expect(commentsRepository.create).toHaveBeenCalledWith(
       {
@@ -218,9 +237,9 @@ describe('CommentsService', () => {
     } as UsersEntity;
     commentsRepository.findById.mockResolvedValue(null);
 
-    await expect(service.createComment({ ...comment, parentId }, savedUser)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.createComment({ ...comment, parentId }, captchaToken, savedUser),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(commentsRepository.findById).toHaveBeenCalledWith(parentId);
     expect(commentsRepository.create).not.toHaveBeenCalled();
     expect(usersRepository.create).not.toHaveBeenCalled();
@@ -316,10 +335,17 @@ describe('CommentsService', () => {
     ).rejects.toBeInstanceOf(InternalServerErrorException);
   });
 
+  it('rejects a comment when the captcha cookie does not match', async () => {
+    await expect(service.createComment(comment, 'not-the-hmac', null)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
   it('turns a failed transaction into an internal server error', async () => {
     dataSource.transaction.mockRejectedValueOnce(new Error('db down'));
 
-    await expect(service.createComment(comment, null)).rejects.toBeInstanceOf(
+    await expect(service.createComment(comment, captchaToken, null)).rejects.toBeInstanceOf(
       InternalServerErrorException,
     );
   });

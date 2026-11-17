@@ -48,6 +48,7 @@ describe('commentsService', () => {
       email: 'formcheck@example.com',
       homepage: 'https://example.com',
       text: '<strong>Form check</strong>',
+      captcha: 'AB12C',
     };
 
     await expect(commentsService.createComment(comment)).resolves.toBe(response);

@@ -2,6 +2,10 @@ jest.mock('@app/auth/services/jwt.service', () => ({
   TokenService: class TokenService {},
 }));
 
+jest.mock('@nestjs/config', () => ({
+  ConfigService: class ConfigService {},
+}));
+
 import type { CommentsSchema } from '@comments/shared';
 import type { UsersEntity } from '@app/users/entity/users.entity';
 import type { RequestWithUser } from '@app/common/guards/auth.guard';
@@ -20,6 +24,7 @@ describe('CommentsController', () => {
     fullName: 'Ann',
     email: 'ann@example.com',
     text: 'Hello',
+    captcha: 'AB12C',
   } as CommentsSchema;
 
   it('creates a comment without a signed-in user', async () => {
@@ -27,16 +32,19 @@ describe('CommentsController', () => {
 
     await controller.createComment({} as RequestWithUser, body);
 
-    expect(commentsService.createComment).toHaveBeenCalledWith(body, null);
+    expect(commentsService.createComment).toHaveBeenCalledWith(body, null, null);
   });
 
-  it('passes the signed-in user through', async () => {
+  it('passes the signed-in user and captcha cookie through', async () => {
     const user = { id: 'user-1' } as UsersEntity;
     commentsService.createComment.mockResolvedValue({ id: '1' });
 
-    await controller.createComment({ user } as RequestWithUser, body);
+    await controller.createComment(
+      { user, cookies: { captcha: 'signed-token' } } as RequestWithUser,
+      body,
+    );
 
-    expect(commentsService.createComment).toHaveBeenCalledWith(body, user);
+    expect(commentsService.createComment).toHaveBeenCalledWith(body, 'signed-token', user);
   });
 
   it('passes the root id to the service', async () => {
