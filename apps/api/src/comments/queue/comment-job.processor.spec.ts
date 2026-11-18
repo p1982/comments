@@ -2,7 +2,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 import sharp from 'sharp';
 
-import { COMMENT_CREATED, CommentCreatedEvent } from '../events/comment-created.event';
+import { COMMENT_CREATED } from '../comments.constants';
+import { CommentCreatedEvent } from '../events/comment-created.event';
 import { CommentJobProcessor } from './comment-job.processor';
 
 jest.mock('node:fs/promises', () => ({

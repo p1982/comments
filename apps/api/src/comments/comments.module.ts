@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { config as loadEnv } from 'dotenv';
+import { CacheModule } from '@nestjs/cache-manager';
 
 import { AttachmentsEntity } from '@app/attachments/entity/attachments.entity';
 import { AttachmentsRepository } from '@app/attachments/repository/attachments.repository';
@@ -19,13 +20,8 @@ import { CommentResolver } from './graphql/comments.resolver';
 import { UploadScalar } from './graphql/upload.scalar';
 import { CommentsGateway } from './gateway/comments.gateway';
 import { CommentCreatedListener } from './listeners/comment-created.listener';
-import {
-  COMMENT_JOB_CLIENT,
-  COMMENT_QUEUE,
-  COMMENT_QUEUE_NAME,
-  type CommentQueuePort,
-  resolveCommentQueueMode,
-} from './queue/comment-job';
+import { COMMENT_JOB_CLIENT, COMMENT_QUEUE, COMMENT_QUEUE_NAME } from './comments.constants';
+import { type CommentQueuePort, resolveCommentQueueMode } from './queue/comment-job';
 import { CommentJobConsumer } from './queue/comment-job.consumer';
 import { CommentJobProcessor } from './queue/comment-job.processor';
 import { CommentQueueService } from './queue/comment-queue.service';
@@ -95,6 +91,10 @@ const rabbitImports: DynamicModule[] = useRabbit
     UsersModule,
     TypeOrmModule.forFeature([CommentsEntity, UsersEntity, AttachmentsEntity]),
     ...rabbitImports,
+    CacheModule.register({
+      ttl: 30_000,
+      max: 100,
+    }),
   ],
 
   controllers: [CommentsController, ...(useRabbit ? [CommentJobConsumer] : [])],

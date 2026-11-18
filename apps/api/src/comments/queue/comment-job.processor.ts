@@ -7,7 +7,8 @@ import { DataSource, type EntityManager } from 'typeorm';
 
 import { AttachmentsRepository } from '@app/attachments/repository/attachments.repository';
 
-import { COMMENT_CREATED, CommentCreatedEvent } from '../events/comment-created.event';
+import { COMMENT_CREATED } from '../comments.constants';
+import { CommentCreatedEvent } from '../events/comment-created.event';
 import { fitImage } from '../helpers/fit-image';
 import { imageKind } from '../helpers/image-kind';
 import type { CommentJob } from './comment-job';

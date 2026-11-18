@@ -21,7 +21,8 @@ import type { EntityManager } from 'typeorm';
 import type { UsersEntity } from '@app/users/entity/users.entity';
 
 import { CommentsService } from './comments.service';
-import { COMMENT_CREATED, CommentCreatedEvent } from './events/comment-created.event';
+import { COMMENT_CREATED } from './comments.constants';
+import { CommentCreatedEvent } from './events/comment-created.event';
 
 const captchaSecret = 'test-captcha-secret';
 const captcha = 'AB12C';
@@ -53,6 +54,7 @@ describe('CommentsService', () => {
   const attachmentsRepository = { create: jest.fn() };
   const events = { emit: jest.fn() };
   const commentQueueService = { enqueue: jest.fn() };
+  const cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() };
   const service = new CommentsService(
     dataSource as never,
     usersRepository as never,
@@ -61,6 +63,7 @@ describe('CommentsService', () => {
     attachmentsRepository as never,
     events as never,
     commentQueueService,
+    cache as never,
   );
 
   const setQueueMode = (mode: 'sync' | 'memory' | 'rabbit') => {
@@ -98,6 +101,8 @@ describe('CommentsService', () => {
     usersRepository.findByEmail.mockResolvedValue(null);
     setQueueMode('sync');
     configService.getOrThrow.mockReturnValue(captchaSecret);
+    cache.get.mockResolvedValue(undefined);
+    cache.set.mockResolvedValue(undefined);
   });
 
   it('creates a user inside the transaction when the email is unknown', async () => {
@@ -308,6 +313,51 @@ describe('CommentsService', () => {
       status: 'success',
       message: 'Comments fetched successfully',
     });
+  });
+
+  it('returns cached comments list without hitting the repository', async () => {
+    const cached = {
+      data: [],
+      total: 0,
+      totalPages: 0,
+      status: 'success',
+      message: 'Comments fetched successfully',
+    };
+    cache.get.mockResolvedValueOnce(0).mockResolvedValueOnce(cached);
+
+    await expect(
+      service.getComments({ page: 1, limit: 25, sort: 'createdAt', order: 'desc' }),
+    ).resolves.toEqual(cached);
+    expect(commentsRepository.findAll).not.toHaveBeenCalled();
+    expect(cache.set).not.toHaveBeenCalled();
+  });
+
+  it('loads from db and stores the result when cache misses', async () => {
+    const savedUser = {
+      id: 'user-1',
+      fullName: 'Ann',
+      email: 'ann@example.com',
+      homepage: 'https://ann.example',
+    } as UsersEntity;
+    commentsRepository.findAll.mockResolvedValue([[{ ...savedComment, user: savedUser }], 1]);
+    cache.get.mockResolvedValue(undefined);
+
+    await service.getComments({ page: 1, limit: 25, sort: 'createdAt', order: 'desc' });
+
+    expect(commentsRepository.findAll).toHaveBeenCalledWith({
+      page: 1,
+      limit: 25,
+      sort: 'createdAt',
+      order: 'desc',
+    });
+    expect(cache.set).toHaveBeenCalledWith(
+      'comments:list:v0:1:25:createdAt:desc',
+      expect.objectContaining({
+        total: 1,
+        totalPages: 1,
+        status: 'success',
+      }),
+    );
   });
 
   it('returns children of a root comment', async () => {
