@@ -10,30 +10,27 @@ export const AuthDialog = styled(Dialog)`
   .MuiDialog-paper {
     width: 100%;
     max-width: 420px;
-    margin: ${({ theme }) => theme.spacing(2)};
+    margin: 16px;
   }
 `;
 
 export const AuthDialogTitle = styled(DialogTitle)`
   && {
-    padding-bottom: ${({ theme }) => theme.spacing(1)};
+    padding-bottom: 8px;
   }
 `;
 
 export const AuthDialogContent = styled(DialogContent)`
   && {
-    padding-top: ${({ theme }) => theme.spacing(1)};
+    padding-top: 8px;
   }
 `;
 
-export const AuthForm = styled(Box).attrs({
-  component: 'form',
-  noValidate: true,
-})`
+export const AuthForm = styled.form`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(2)};
-  padding-top: ${({ theme }) => theme.spacing(1)};
+  gap: 16px;
+  padding-top: 8px;
 `;
 
 export const AuthFields = styled(Stack).attrs({
@@ -43,12 +40,12 @@ export const AuthFields = styled(Stack).attrs({
 export const AuthDialogActions = styled(DialogActions)`
   && {
     justify-content: space-between;
-    padding: ${({ theme }) => `${theme.spacing(1)} ${theme.spacing(3)} ${theme.spacing(2)}`};
+    padding: 8px 24px 16px;
   }
 `;
 
 export const AuthSwitchRow = styled(Box)`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing(0.5)};
+  gap: 4px;
 `;

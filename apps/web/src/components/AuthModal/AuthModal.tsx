@@ -90,7 +90,7 @@ const AuthModal = ({ open, mode, onClose, onModeChange, onSuccess }: AuthModalPr
       <AuthDialogTitle id="auth-dialog-title">
         {isSignUp ? t('signUp') : t('signIn')}
       </AuthDialogTitle>
-      <AuthForm onSubmit={onSubmit}>
+      <AuthForm noValidate onSubmit={onSubmit}>
         <AuthDialogContent>
           <AuthFields>
             {isSignUp ? (
