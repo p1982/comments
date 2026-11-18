@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import type { CommentJob } from './comment-job';
+import type { CommentJob, CommentQueuePort } from './comment-job';
 import { CommentJobProcessor } from './comment-job.processor';
 
 @Injectable()
-export class CommentQueueService {
+export class CommentQueueService implements CommentQueuePort {
   private readonly logger = new Logger(CommentQueueService.name);
   private readonly jobs: CommentJob[] = [];
   private running = false;

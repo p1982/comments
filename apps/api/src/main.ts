@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { Transport } from '@nestjs/microservices';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
@@ -10,6 +11,7 @@ import cookieParser from 'cookie-parser';
 import { CookiesName } from '@comments/shared';
 
 import { AppModule } from './app/app.module';
+import { COMMENT_QUEUE_NAME, resolveCommentQueueMode } from './comments/queue/comment-job';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -48,6 +50,19 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document, { useGlobalPrefix: true });
+
+  if (resolveCommentQueueMode(config.get<string>('COMMENT_QUEUE_MODE')) === 'rabbit') {
+    app.connectMicroservice({
+      transport: Transport.RMQ,
+      options: {
+        urls: [config.getOrThrow<string>('RABBITMQ_URL')],
+        queue: config.get<string>('COMMENT_QUEUE_NAME', COMMENT_QUEUE_NAME),
+        queueOptions: { durable: true },
+      },
+    });
+    await app.startAllMicroservices();
+    Logger.log('RabbitMQ comment-job consumer started');
+  }
 
   await app.listen(port);
 

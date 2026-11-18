@@ -1,5 +1,10 @@
-import { Module } from '@nestjs/common';
+import { resolve } from 'node:path';
+
+import { Module, type DynamicModule, type Provider } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { config as loadEnv } from 'dotenv';
 
 import { AttachmentsEntity } from '@app/attachments/entity/attachments.entity';
 import { AttachmentsRepository } from '@app/attachments/repository/attachments.repository';
@@ -7,23 +12,90 @@ import { AuthModule } from '@app/auth/auth.module';
 import { UsersEntity } from '@app/users/entity/users.entity';
 import { UsersModule } from '@app/users/users.module';
 
-import { CommentsRepository } from './repository/comments.repository';
+import { CommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
 import { CommentsEntity } from './entity/comments.entity';
-import { CommentsController } from './comments.controller';
-import { CommentCreatedListener } from './listeners/comment-created.listener';
 import { CommentsGateway } from './gateway/comments.gateway';
+import { CommentCreatedListener } from './listeners/comment-created.listener';
+import {
+  COMMENT_JOB_CLIENT,
+  COMMENT_QUEUE,
+  COMMENT_QUEUE_NAME,
+  type CommentQueuePort,
+  resolveCommentQueueMode,
+} from './queue/comment-job';
+import { CommentJobConsumer } from './queue/comment-job.consumer';
 import { CommentJobProcessor } from './queue/comment-job.processor';
 import { CommentQueueService } from './queue/comment-queue.service';
+import { CommentsRepository } from './repository/comments.repository';
+import { RabbitCommentQueueService } from './queue/rabbit-comment-queue.service';
+
+loadEnv({ path: resolve(process.cwd(), '.env') });
+loadEnv({ path: resolve(process.cwd(), '../../.env') });
+
+const queueMode = resolveCommentQueueMode(process.env['COMMENT_QUEUE_MODE']);
+const useRabbit = queueMode === 'rabbit';
+
+const syncQueue: CommentQueuePort = {
+  enqueue() {
+    // sync mode handles fit + emit inside CommentsService
+  },
+};
+
+const commentQueueProvider: Provider = {
+  provide: COMMENT_QUEUE,
+  inject: useRabbit
+    ? [ConfigService, CommentQueueService, RabbitCommentQueueService]
+    : [ConfigService, CommentQueueService],
+  useFactory: (
+    configService: ConfigService,
+    memoryQueue: CommentQueueService,
+    rabbitQueue?: RabbitCommentQueueService,
+  ): CommentQueuePort => {
+    const mode = resolveCommentQueueMode(configService.get<string>('COMMENT_QUEUE_MODE'));
+    if (mode === 'memory') {
+      return memoryQueue;
+    }
+    if (mode === 'rabbit') {
+      if (!rabbitQueue) {
+        throw new Error(
+          'COMMENT_QUEUE_MODE=rabbit but RabbitCommentQueueService is not registered',
+        );
+      }
+      return rabbitQueue;
+    }
+    return syncQueue;
+  },
+};
+
+const rabbitImports: DynamicModule[] = useRabbit
+  ? [
+      ClientsModule.registerAsync([
+        {
+          name: COMMENT_JOB_CLIENT,
+          inject: [ConfigService],
+          useFactory: (configService: ConfigService) => ({
+            transport: Transport.RMQ,
+            options: {
+              urls: [configService.getOrThrow<string>('RABBITMQ_URL')],
+              queue: configService.get<string>('COMMENT_QUEUE_NAME', COMMENT_QUEUE_NAME),
+              queueOptions: { durable: true },
+            },
+          }),
+        },
+      ]),
+    ]
+  : [];
 
 @Module({
   imports: [
     AuthModule,
     UsersModule,
     TypeOrmModule.forFeature([CommentsEntity, UsersEntity, AttachmentsEntity]),
+    ...rabbitImports,
   ],
 
-  controllers: [CommentsController],
+  controllers: [CommentsController, ...(useRabbit ? [CommentJobConsumer] : [])],
 
   providers: [
     CommentsService,
@@ -33,6 +105,8 @@ import { CommentQueueService } from './queue/comment-queue.service';
     CommentsGateway,
     CommentJobProcessor,
     CommentQueueService,
+    ...(useRabbit ? [RabbitCommentQueueService] : []),
+    commentQueueProvider,
   ],
 })
 export class CommentsModule {}

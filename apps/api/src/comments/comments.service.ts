@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   BadRequestException,
   HttpException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -32,7 +33,7 @@ import { CommentsEntity } from './entity/comments.entity';
 import { fitImage } from './helpers/fit-image';
 import { imageKind } from './helpers/image-kind';
 import { COMMENT_CREATED, CommentCreatedEvent } from './events/comment-created.event';
-import { CommentQueueService } from './queue/comment-queue.service';
+import { COMMENT_QUEUE, type CommentQueuePort, resolveCommentQueueMode } from './queue/comment-job';
 
 @Injectable()
 export class CommentsService {
@@ -44,11 +45,11 @@ export class CommentsService {
     private readonly configService: ConfigService,
     private readonly attachmentsRepository: AttachmentsRepository,
     private readonly events: EventEmitter2,
-    private readonly commentQueueService: CommentQueueService,
+    @Inject(COMMENT_QUEUE) private readonly commentQueue: CommentQueuePort,
   ) {}
 
-  private isCommentQueueEnabled(): boolean {
-    return this.configService.get<string>('COMMENT_QUEUE_ENABLED', 'false') === 'true';
+  private getQueueMode() {
+    return resolveCommentQueueMode(this.configService.get<string>('COMMENT_QUEUE_MODE'));
   }
 
   async getCommentsByRootId(rootId: string): Promise<CommentsResult> {
@@ -118,7 +119,8 @@ export class CommentsService {
         throw new BadRequestException(ERROR_MESSAGES.invalidCaptcha);
       }
 
-      const useQueue = this.isCommentQueueEnabled();
+      const queueMode = this.getQueueMode();
+      const useQueue = queueMode !== 'sync';
       let pendingImage: { buffer: Buffer; fileName: string } | undefined;
 
       const response = await this.dataSource.transaction(async (manager) => {
@@ -210,14 +212,14 @@ export class CommentsService {
 
       if (useQueue) {
         if (pendingImage) {
-          this.commentQueueService.enqueue({
+          await this.commentQueue.enqueue({
             type: 'process-image',
             commentId: response.id,
             fileName: pendingImage.fileName,
             buffer: pendingImage.buffer,
           });
         }
-        this.commentQueueService.enqueue({
+        await this.commentQueue.enqueue({
           type: 'comment-created',
           comment: response,
         });
