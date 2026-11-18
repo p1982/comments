@@ -60,13 +60,13 @@ describe('CommentsService', () => {
     configService as never,
     attachmentsRepository as never,
     events as never,
-    commentQueueService as never,
+    commentQueueService,
   );
 
-  const setQueueEnabled = (enabled: boolean) => {
+  const setQueueMode = (mode: 'sync' | 'memory' | 'rabbit') => {
     configService.get.mockImplementation((key: string, defaultValue?: string) => {
-      if (key === 'COMMENT_QUEUE_ENABLED') {
-        return enabled ? 'true' : 'false';
+      if (key === 'COMMENT_QUEUE_MODE') {
+        return mode;
       }
       return defaultValue;
     });
@@ -96,7 +96,7 @@ describe('CommentsService', () => {
     commentsInTransaction.findOne.mockResolvedValue(savedComment);
     jest.spyOn(crypto, 'randomUUID').mockReturnValue(savedComment.id);
     usersRepository.findByEmail.mockResolvedValue(null);
-    setQueueEnabled(false);
+    setQueueMode('sync');
     configService.getOrThrow.mockReturnValue(captchaSecret);
   });
 
@@ -408,8 +408,8 @@ describe('CommentsService', () => {
     expect(commentQueueService.enqueue).not.toHaveBeenCalled();
   });
 
-  it('enqueues image processing and comment.created when the queue is enabled', async () => {
-    setQueueEnabled(true);
+  it('enqueues image processing and comment.created when mode is memory', async () => {
+    setQueueMode('memory');
     const savedUser = {
       id: 'user-1',
       fullName: 'Ann',
@@ -444,8 +444,8 @@ describe('CommentsService', () => {
     });
   });
 
-  it('enqueues only comment.created when the queue is enabled and there is no image', async () => {
-    setQueueEnabled(true);
+  it('enqueues only comment.created when mode is rabbit and there is no image', async () => {
+    setQueueMode('rabbit');
     const savedUser = {
       id: 'user-1',
       fullName: 'Ann',

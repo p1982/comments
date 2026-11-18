@@ -15,6 +15,19 @@ services:
       timeout: 5s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: comments-rabbitmq
+    restart: unless-stopped
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: .
@@ -37,12 +50,16 @@ services:
       DB_LOGGING: 'false'
       JWT_SECRET: secret
       CAPTCHA_SECRET: secret
-      COMMENT_QUEUE_ENABLED: 'true'
+      COMMENT_QUEUE_MODE: rabbit
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      COMMENT_QUEUE_NAME: comments.jobs
       NX_READY_SIGNAL_SOCKET: 'false'
     volumes:
       - api_assets:/app/apps/api/assets
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   web:
