@@ -1,4 +1,4 @@
-import { COMMENT_QUEUE_NAME } from './comment-job';
+import { COMMENT_QUEUE_NAME } from '../comments.constants';
 import { RabbitCommentQueueService } from './rabbit-comment-queue.service';
 
 describe('RabbitCommentQueueService', () => {

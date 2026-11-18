@@ -14,6 +14,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DataSource, type EntityManager } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 
 import type {
   CommentResponse,
@@ -32,8 +34,14 @@ import { CommentsRepository } from './repository/comments.repository';
 import { CommentsEntity } from './entity/comments.entity';
 import { fitImage } from './helpers/fit-image';
 import { imageKind } from './helpers/image-kind';
-import { COMMENT_CREATED, CommentCreatedEvent } from './events/comment-created.event';
-import { COMMENT_QUEUE, type CommentQueuePort, resolveCommentQueueMode } from './queue/comment-job';
+import {
+  COMMENT_CREATED,
+  COMMENT_QUEUE,
+  COMMENTS_LIST_CACHE_VERSION_KEY,
+} from './comments.constants';
+import { CommentCreatedEvent } from './events/comment-created.event';
+import { commentsListCacheKey } from './helpers/comments-list-cache-key';
+import { type CommentQueuePort, resolveCommentQueueMode } from './queue/comment-job';
 
 @Injectable()
 export class CommentsService {
@@ -46,6 +54,7 @@ export class CommentsService {
     private readonly attachmentsRepository: AttachmentsRepository,
     private readonly events: EventEmitter2,
     @Inject(COMMENT_QUEUE) private readonly commentQueue: CommentQueuePort,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   private getQueueMode() {
@@ -80,14 +89,23 @@ export class CommentsService {
   async getComments(query: CommentsListQuery): Promise<CommentsResult> {
     this.logger.log(`Getting all comments with query: ${JSON.stringify(query)}`);
     try {
+      const version = (await this.cache.get<number>(COMMENTS_LIST_CACHE_VERSION_KEY)) ?? 0;
+      const key = commentsListCacheKey(query, version);
+      const cached = await this.cache.get<CommentsResult>(key);
+      if (cached) {
+        return cached;
+      }
       const [comments, total] = await this.commentsRepository.findAll(query);
-      return {
-        data: comments.map((comment) => toCommentResponse(comment, comment.user)),
+      const result: CommentsResult = {
+        data: comments.map((c) => toCommentResponse(c, c.user)),
         total,
         totalPages: Math.ceil(total / query.limit),
         status: 'success',
         message: 'Comments fetched successfully',
       };
+
+      await this.cache.set(key, result);
+      return result;
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;

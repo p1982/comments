@@ -1,12 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 
-import {
-  COMMENT_JOB_CLIENT,
-  COMMENT_QUEUE_NAME,
-  type CommentJob,
-  type CommentQueuePort,
-} from './comment-job';
+import { COMMENT_JOB_CLIENT, COMMENT_QUEUE_NAME } from '../comments.constants';
+import type { CommentJob, CommentQueuePort } from './comment-job';
 import { serializeCommentJob } from './comment-job.serialize';
 
 @Injectable()

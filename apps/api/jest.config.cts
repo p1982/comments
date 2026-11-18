@@ -17,6 +17,7 @@ module.exports = {
   moduleNameMapper: {
     '^@app/(.*)$': '<rootDir>/src/$1',
     '^@nestjs/event-emitter$': '<rootDir>/src/test/nestjs-event-emitter.mock.ts',
+    '^@nestjs/cache-manager$': '<rootDir>/src/test/nestjs-cache-manager.mock.ts',
   },
   coverageProvider: 'v8',
   collectCoverage: true,

@@ -12,7 +12,8 @@ import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
 import { CookiesName } from '@comments/shared';
 
 import { AppModule } from './app/app.module';
-import { COMMENT_QUEUE_NAME, resolveCommentQueueMode } from './comments/queue/comment-job';
+import { COMMENT_QUEUE_NAME } from './comments/comments.constants';
+import { resolveCommentQueueMode } from './comments/queue/comment-job';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);

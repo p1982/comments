@@ -1,7 +1,7 @@
 import { Controller, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 
-import { COMMENT_QUEUE_NAME } from './comment-job';
+import { COMMENT_QUEUE_NAME } from '../comments.constants';
 import { CommentJobProcessor } from './comment-job.processor';
 import { deserializeCommentJob, type SerializedCommentJob } from './comment-job.serialize';
 
