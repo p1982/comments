@@ -1,3 +1,4 @@
+import type { AuthSignInRequest, AuthStatusResponse } from '../dto/auth.dto.js';
 import { authEndpoint, ENDPOINTS } from '../endpoints/endpoints.js';
 import { ImageKind } from '../image-kind/image-kind.js';
 import { getApiUrl, getApiVersion, shared } from '../index.js';
@@ -28,6 +29,11 @@ describe('shared package', () => {
     expect(authEndpoint(ENDPOINTS.REFRESH)).toBe('/auth/refresh');
     expect(ENDPOINTS.COMMENTS).toBe('/comments');
     expect(ENDPOINTS.CAPTCHA).toBe('/captcha');
+
+    const signIn: AuthSignInRequest = { email: 'a@b.c', password: 'x' };
+    const status: AuthStatusResponse = { status: 'success' };
+    expect(signIn.email).toBe('a@b.c');
+    expect(status.status).toBe('success');
     expect(ImageKind.JPEG).toBe('jpeg');
     expect(ImageKind.PNG).toBe('png');
     expect(ImageKind.GIF).toBe('gif');

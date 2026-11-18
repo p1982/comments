@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class AuthStatusDto {
+import type { AuthStatusResponse } from '@comments/shared';
+
+export class AuthStatusDto implements AuthStatusResponse {
   @ApiProperty({ example: 'success' })
   status!: string;
 }

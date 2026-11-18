@@ -17,3 +17,4 @@ export {
   type GetCommentsQuery,
   type CreateCommentResponse,
 } from './dto/comment.dto.js';
+export type { AuthStatusResponse, AuthSignInRequest, AuthSignUpRequest } from './dto/auth.dto.js';

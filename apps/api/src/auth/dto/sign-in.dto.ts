@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class SignInDto {
+import type { AuthSignInRequest } from '@comments/shared';
+
+export class SignInDto implements AuthSignInRequest {
   @ApiProperty({ example: 'auth@example.com' })
   email!: string;
 

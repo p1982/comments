@@ -24,6 +24,7 @@ module.exports = {
     'src/lib/**/*.ts',
     'src/api/axios/**/*.ts',
     'src/api/services/comments.service.ts',
+    'src/api/services/auth.service.ts',
   ],
   coverageThreshold: {
     global: {
