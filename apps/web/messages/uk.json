@@ -16,5 +16,18 @@
     "textFileLabel": "Текстовий файл TXT до 100 КБ",
     "nameRequired": "Імʼя обовʼязкове",
     "messageRequired": "Повідомлення обовʼязкове"
+  },
+  "Auth": {
+    "signIn": "Увійти",
+    "signUp": "Реєстрація",
+    "email": "Email",
+    "password": "Пароль",
+    "fullName": "Повне імʼя",
+    "homepage": "Домашня сторінка",
+    "signedIn": "Ви увійшли",
+    "error": "Не вдалося увійти",
+    "signUpError": "Не вдалося зареєструватися",
+    "haveAccount": "Вже є акаунт?",
+    "noAccount": "Ще немає акаунта?"
   }
 }

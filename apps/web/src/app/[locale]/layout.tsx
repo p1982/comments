@@ -3,6 +3,7 @@ import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 
+import Header from '@/components/Header/Header';
 import { ApolloWrapper, AppProviders } from '@/components/providers';
 import { routing } from '@/i18n/routing';
 
@@ -30,7 +31,10 @@ export default async function LocaleLayout({
       <body suppressHydrationWarning>
         <ApolloWrapper>
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <AppProviders>{children}</AppProviders>
+            <AppProviders>
+              <Header />
+              {children}
+            </AppProviders>
           </NextIntlClientProvider>
         </ApolloWrapper>
       </body>

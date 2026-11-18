@@ -16,5 +16,18 @@
     "textFileLabel": "TXT file up to 100 KB",
     "nameRequired": "Name is required",
     "messageRequired": "Message is required"
+  },
+  "Auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full name",
+    "homepage": "Homepage",
+    "signedIn": "Signed in",
+    "error": "Sign-in failed",
+    "signUpError": "Sign-up failed",
+    "haveAccount": "Already have an account?",
+    "noAccount": "No account yet?"
   }
 }

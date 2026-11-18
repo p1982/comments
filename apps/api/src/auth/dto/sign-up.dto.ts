@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class SignUpDto {
+import type { AuthSignUpRequest } from '@comments/shared';
+
+export class SignUpDto implements AuthSignUpRequest {
   @ApiProperty({ example: 'Ann' })
   fullName!: string;
 

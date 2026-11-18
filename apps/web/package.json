@@ -3,7 +3,16 @@
   "version": "0.0.1",
   "private": true,
   "nx": {
-    "sourceRoot": "apps/web/src"
+    "sourceRoot": "apps/web/src",
+    "targets": {
+      "build": {
+        "options": {
+          "env": {
+            "NODE_ENV": "production"
+          }
+        }
+      }
+    }
   },
   "dependencies": {
     "@comments/shared": "*",
