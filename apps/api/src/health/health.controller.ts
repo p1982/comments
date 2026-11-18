@@ -12,7 +12,7 @@ import { HealthService } from './health.service';
 
 @ApiTags('health')
 @Controller()
-export class AppController {
+export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Get('health')

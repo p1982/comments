@@ -1,12 +1,12 @@
 import { HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
 
-import { AppController } from './app.controller';
+import { HealthController } from './health.controller';
 import type { HealthService } from './health.service';
 
-describe('AppController', () => {
+describe('HealthController', () => {
   const healthService = { check: jest.fn() };
-  const controller = new AppController(healthService as unknown as HealthService);
+  const controller = new HealthController(healthService as unknown as HealthService);
   const response = { status: jest.fn() };
 
   it('returns 200 when every dependency is up', async () => {
