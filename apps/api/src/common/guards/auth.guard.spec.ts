@@ -3,6 +3,7 @@ jest.mock('@app/auth/services/jwt.service', () => ({
 }));
 
 import { UnauthorizedException, type ExecutionContext } from '@nestjs/common';
+import { GqlExecutionContext } from '@nestjs/graphql';
 
 import type { TokenService } from '@app/auth/services/jwt.service';
 import type { UsersEntity } from '@app/users/entity/users.entity';
@@ -29,6 +30,7 @@ describe('AuthGuard', () => {
       request.cookies = cookies;
     }
     return {
+      getType: () => 'http',
       switchToHttp: () => ({
         getRequest: () => request,
       }),
@@ -37,6 +39,7 @@ describe('AuthGuard', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   it.each([undefined, {}, { access_token: '' }])(
@@ -68,5 +71,25 @@ describe('AuthGuard', () => {
     await expect(guard.canActivate(contextFor({ access_token: 'token' }))).rejects.toThrow(
       new UnauthorizedException(ERROR_MESSAGES.userNotFound),
     );
+  });
+
+  it('reads the request from a GraphQL context', async () => {
+    const request: { cookies?: { access_token?: string }; user?: UsersEntity } = {
+      cookies: { access_token: 'token' },
+    };
+    const user = { id: 'user-1' } as UsersEntity;
+    tokenService.decodeToken.mockReturnValue({ id: 'user-1', email: 'a@b.c' });
+    usersRepository.findById.mockResolvedValue(user);
+    const create = jest.spyOn(GqlExecutionContext, 'create').mockReturnValue({
+      getContext: () => ({ req: request }),
+    } as never);
+
+    const context = {
+      getType: () => 'graphql',
+    } as unknown as ExecutionContext;
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(create).toHaveBeenCalledWith(context);
+    expect(request.user).toBe(user);
   });
 });

@@ -7,6 +7,7 @@ import { Transport } from '@nestjs/microservices';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
 
 import { CookiesName } from '@comments/shared';
 
@@ -36,6 +37,14 @@ async function bootstrap() {
   );
   app.use(cookieParser());
   app.useStaticAssets(join(process.cwd(), 'apps', 'api', 'assets'), { prefix: '/assets/' });
+
+  app.use(
+    '/graphql',
+    graphqlUploadExpress({
+      maxFileSize: 5 * 1024 * 1024,
+      maxFiles: 2,
+    }),
+  );
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Comments API')

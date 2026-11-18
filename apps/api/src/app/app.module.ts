@@ -37,6 +37,7 @@ import { GlobalExceptionFilter } from '../common/filter/global-exception.filter'
         subscriptions: {
           'graphql-ws': true,
         },
+        context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
         formatError: (error) => ({
           message: error.message,
           code: error.extensions?.['code'] ?? ERROR_CODES.INTERNAL_SERVER_ERROR,
