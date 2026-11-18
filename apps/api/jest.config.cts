@@ -30,6 +30,8 @@ module.exports = {
     '!src/database/migrations/**',
     '!src/database/seeds/**',
     '!src/auth/**',
+    '!src/comments/graphql/*.type.ts',
+    '!src/comments/graphql/*.input.ts',
   ],
   coverageThreshold: {
     global: {
