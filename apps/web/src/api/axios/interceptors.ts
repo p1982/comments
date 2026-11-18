@@ -1,6 +1,6 @@
 import axios, { isAxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 
-import { ENDPOINTS } from '@comments/shared';
+import { authEndpoint, ENDPOINTS } from '@comments/shared';
 
 import { API_CONFIG } from './config';
 
@@ -8,7 +8,8 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-const AUTH_SKIP_REFRESH = [ENDPOINTS.SIGNIN, ENDPOINTS.REFRESH] as const;
+const AUTH_SKIP_REFRESH = [ENDPOINTS.SIGNIN, ENDPOINTS.SIGNUP, ENDPOINTS.REFRESH] as const;
+const REFRESH_URL = authEndpoint(ENDPOINTS.REFRESH);
 
 const toError = (reason: unknown): Error =>
   reason instanceof Error ? reason : new Error(String(reason));
@@ -44,7 +45,7 @@ export const setupInterceptors = (instance: AxiosInstance): void => {
 
       try {
         refreshPromise ??= axios
-          .post(`${API_CONFIG.baseURL ?? ''}${ENDPOINTS.REFRESH}`, {}, { withCredentials: true })
+          .post(`${API_CONFIG.baseURL ?? ''}${REFRESH_URL}`, {}, { withCredentials: true })
           .then(() => undefined)
           .finally(() => {
             refreshPromise = null;

@@ -66,4 +66,37 @@ describe('UsersRepository', () => {
 
     await expect(users.create({ email: 'a@b.c', fullName: 'Ann' }, manager)).resolves.toBe(saved);
   });
+
+  it('finds a user for auth without comment relations', async () => {
+    const user = { id: '1' } as UsersEntity;
+    repo.findOne.mockResolvedValue(user);
+
+    await expect(users.findByEmailForAuth('  Auth@Mail.com ')).resolves.toBe(user);
+    expect(repo.findOne).toHaveBeenCalledWith({
+      where: { email: 'auth@mail.com' },
+    });
+  });
+
+  it('creates a user with a password hash', async () => {
+    const saved = {
+      id: '1',
+      email: 'auth@example.com',
+      passwordHash: 'hashed',
+    } as UsersEntity;
+    repo.save.mockResolvedValue(saved);
+
+    await expect(
+      users.createWithPassword({
+        email: '  Auth@Example.com ',
+        fullName: 'Ann',
+        passwordHash: 'hashed',
+      }),
+    ).resolves.toBe(saved);
+    expect(repo.create).toHaveBeenCalledWith({
+      email: 'auth@example.com',
+      fullName: 'Ann',
+      homepage: '',
+      passwordHash: 'hashed',
+    });
+  });
 });

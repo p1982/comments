@@ -1,4 +1,4 @@
-import { ENDPOINTS } from '../endpoints/endpoints.js';
+import { authEndpoint, ENDPOINTS } from '../endpoints/endpoints.js';
 import { ImageKind } from '../image-kind/image-kind.js';
 import { getApiUrl, getApiVersion, shared } from '../index.js';
 
@@ -19,8 +19,13 @@ describe('shared package', () => {
 
   it('exposes the shared marker and auth endpoints', () => {
     expect(shared()).toBe('shared');
-    expect(ENDPOINTS.SIGNIN).toBe('/auth/signin');
-    expect(ENDPOINTS.REFRESH).toBe('/auth/refresh');
+    expect(ENDPOINTS.AUTH).toBe('/auth');
+    expect(ENDPOINTS.SIGNIN).toBe('/signin');
+    expect(ENDPOINTS.SIGNUP).toBe('/signup');
+    expect(ENDPOINTS.REFRESH).toBe('/refresh');
+    expect(authEndpoint(ENDPOINTS.SIGNIN)).toBe('/auth/signin');
+    expect(authEndpoint(ENDPOINTS.SIGNUP)).toBe('/auth/signup');
+    expect(authEndpoint(ENDPOINTS.REFRESH)).toBe('/auth/refresh');
     expect(ENDPOINTS.COMMENTS).toBe('/comments');
     expect(ENDPOINTS.CAPTCHA).toBe('/captcha');
     expect(ImageKind.JPEG).toBe('jpeg');

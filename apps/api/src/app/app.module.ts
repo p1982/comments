@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
+import { AuthModule } from '@app/auth/auth.module';
 import { CaptchasModule } from '@app/captcha/captcha.module';
 import { CommentsModule } from '@app/comments/comments.module';
 import { getDataSource } from '@app/database/data-source';
@@ -35,6 +36,7 @@ import { buildGraphQLOptions } from './graphql.options';
       useFactory: getDataSource,
     }),
     EventEmitterModule.forRoot(),
+    AuthModule,
     CommentsModule,
     UsersModule,
     CaptchasModule,

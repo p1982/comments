@@ -1,9 +1,11 @@
 import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 
-import { ENDPOINTS } from '@comments/shared';
+import { authEndpoint, ENDPOINTS } from '@comments/shared';
 
 import { API_CONFIG } from './config';
 import { setupInterceptors } from './interceptors';
+
+const REFRESH_URL = authEndpoint(ENDPOINTS.REFRESH);
 
 const responseHandlers = (instance: ReturnType<typeof axios.create>) => {
   const manager = instance.interceptors.response as unknown as {
@@ -66,24 +68,28 @@ describe('axios interceptors', () => {
     await expect(handlers.rejected(noResponse)).rejects.toThrow('no response');
   });
 
-  it('does not refresh a sign-in or an already retried request', async () => {
+  it('does not refresh a sign-in, sign-up, or an already retried request', async () => {
     const instance = axios.create();
     setupInterceptors(instance);
     const handlers = responseHandlers(instance);
     const signin = new AxiosError('unauthorized');
     signin.response = { status: 401 } as AxiosResponse;
-    signin.config = { url: '/auth/signin' } as InternalAxiosRequestConfig;
+    signin.config = { url: authEndpoint(ENDPOINTS.SIGNIN) } as InternalAxiosRequestConfig;
+    const signup = new AxiosError('unauthorized');
+    signup.response = { status: 401 } as AxiosResponse;
+    signup.config = { url: authEndpoint(ENDPOINTS.SIGNUP) } as InternalAxiosRequestConfig;
     const retried = new AxiosError('unauthorized');
     retried.response = { status: 401 } as AxiosResponse;
     retried.config = { url: '/comments', _retry: true } as InternalAxiosRequestConfig;
     const refresh = new AxiosError('unauthorized');
     refresh.response = { status: 401 } as AxiosResponse;
-    refresh.config = { url: ENDPOINTS.REFRESH } as InternalAxiosRequestConfig;
+    refresh.config = { url: REFRESH_URL } as InternalAxiosRequestConfig;
 
     const missingConfig = new AxiosError('unauthorized');
     missingConfig.response = { status: 401 } as AxiosResponse;
 
     await expect(handlers.rejected(signin)).rejects.toThrow('unauthorized');
+    await expect(handlers.rejected(signup)).rejects.toThrow('unauthorized');
     await expect(handlers.rejected(retried)).rejects.toThrow('unauthorized');
     await expect(handlers.rejected(refresh)).rejects.toThrow('unauthorized');
     await expect(handlers.rejected(missingConfig)).rejects.toThrow('unauthorized');
@@ -116,7 +122,7 @@ describe('axios interceptors', () => {
 
     await expect(handlers.rejected(error)).resolves.toEqual({ data: { ok: true } });
     expect(post).toHaveBeenCalledWith(
-      `${API_CONFIG.baseURL ?? ''}${ENDPOINTS.REFRESH}`,
+      `${API_CONFIG.baseURL ?? ''}${REFRESH_URL}`,
       {},
       { withCredentials: true },
     );
@@ -153,7 +159,7 @@ describe('axios interceptors', () => {
       release({ data: {} });
       await expect(pending).resolves.toEqual([{ data: { ok: true } }, { data: { ok: true } }]);
       expect(post).toHaveBeenCalledTimes(1);
-      expect(post).toHaveBeenCalledWith(ENDPOINTS.REFRESH, {}, { withCredentials: true });
+      expect(post).toHaveBeenCalledWith(REFRESH_URL, {}, { withCredentials: true });
     } finally {
       API_CONFIG.baseURL = previousBaseUrl;
     }

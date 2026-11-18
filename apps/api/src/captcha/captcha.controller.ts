@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, HttpStatus, Res } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiCookieAuth, ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
@@ -6,11 +7,16 @@ import { CookiesName, ENDPOINTS } from '@comments/shared';
 
 import { CaptchaService } from './captcha.service';
 
+const DEFAULT_CAPTCHA_MAX_AGE_MS = 5 * 60 * 1000;
+
 @ApiTags(ENDPOINTS.CAPTCHA)
 @ApiCookieAuth(CookiesName.CAPTCHA)
 @Controller(ENDPOINTS.CAPTCHA)
 export class CaptchaController {
-  constructor(private readonly captchaService: CaptchaService) {}
+  constructor(
+    private readonly captchaService: CaptchaService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Get()
   @HttpCode(HttpStatus.OK)
@@ -20,7 +26,7 @@ export class CaptchaController {
     description: 'SVG image. Sets the httpOnly captcha cookie.',
     headers: {
       'Set-Cookie': {
-        description: `${CookiesName.CAPTCHA}=<hmac>; HttpOnly; Path=/; SameSite=Lax; Max-Age=300`,
+        description: `${CookiesName.CAPTCHA}=<hmac>; HttpOnly; Path=/; SameSite=Lax; Max-Age=<CAPTCHA_MAX_AGE_MS/1000>`,
         schema: { type: 'string' },
       },
     },
@@ -28,12 +34,13 @@ export class CaptchaController {
   })
   getCaptcha(@Res() res: Response): void {
     const { svg, token } = this.captchaService.getCaptcha();
+    const maxAge = Number(this.config.get('CAPTCHA_MAX_AGE_MS', DEFAULT_CAPTCHA_MAX_AGE_MS));
 
     res.cookie(CookiesName.CAPTCHA, token, {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',
-      maxAge: 5 * 60 * 1000,
+      maxAge,
     });
     res.type('image/svg+xml').send(svg);
   }
