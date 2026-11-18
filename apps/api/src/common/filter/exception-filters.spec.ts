@@ -68,9 +68,12 @@ describe('exception filters', () => {
       get: () => 'development',
     } as unknown as ConfigService);
 
-    expect(production({ message: 'formatted' }, new Error('secret')).message).toBe(
-      ERROR_MESSAGES.internalServerError,
-    );
+    const productionError = production({ message: 'formatted' }, new Error('secret'));
+    expect(productionError).toEqual({
+      message: ERROR_MESSAGES.internalServerError,
+      extensions: { code: ERROR_CODES.INTERNAL_SERVER_ERROR },
+    });
+    expect(JSON.stringify(productionError)).not.toContain('secret');
     expect(development({ message: 'formatted' }, 'not-an-error').message).toBe('formatted');
     expect(development({ message: 'formatted' }, new Error('secret')).message).toBe('secret');
   });

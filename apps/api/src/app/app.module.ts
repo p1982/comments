@@ -1,8 +1,6 @@
-import { join } from 'path';
-
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { ApolloDriver, type ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER } from '@nestjs/core';
@@ -11,14 +9,13 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CaptchasModule } from '@app/captcha/captcha.module';
 import { CommentsModule } from '@app/comments/comments.module';
 import { getDataSource } from '@app/database/data-source';
+import { HealthModule } from '@app/health/health.module';
 import { UsersModule } from '@app/users/users.module';
 
-import { AppController } from './app.controller';
 import { AppResolver } from './app.resolver';
 import { AppService } from './app.service';
-import { HealthService } from './health.service';
-import { ERROR_CODES } from '../common/filter/error-messages';
 import { GlobalExceptionFilter } from '../common/filter/global-exception.filter';
+import { buildGraphQLOptions } from './graphql.options';
 
 @Module({
   imports: [
@@ -30,19 +27,7 @@ import { GlobalExceptionFilter } from '../common/filter/global-exception.filter'
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        autoSchemaFile: join(process.cwd(), 'apps/api/schema.gql'),
-        sortSchema: true,
-        playground: config.get<string>('NODE_ENV') !== 'production',
-        subscriptions: {
-          'graphql-ws': true,
-        },
-        context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
-        formatError: (error) => ({
-          message: error.message,
-          code: error.extensions?.['code'] ?? ERROR_CODES.INTERNAL_SERVER_ERROR,
-        }),
-      }),
+      useFactory: buildGraphQLOptions,
     }),
 
     TypeOrmModule.forRootAsync({
@@ -53,13 +38,11 @@ import { GlobalExceptionFilter } from '../common/filter/global-exception.filter'
     CommentsModule,
     UsersModule,
     CaptchasModule,
+    HealthModule,
   ],
-
-  controllers: [AppController],
 
   providers: [
     AppService,
-    HealthService,
     AppResolver,
     {
       provide: APP_FILTER,
