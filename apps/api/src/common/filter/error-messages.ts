@@ -1,6 +1,8 @@
 import { HttpStatus } from '@nestjs/common';
 
 export const ERROR_MESSAGES = {
+  invalidCredentials: 'Invalid credentials',
+  emailTaken: 'Email is already registered',
   textFileTooLarge: 'Text file is too large',
   invalidCaptcha: 'Invalid captcha',
   invalidImage: 'Invalid image',

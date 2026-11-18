@@ -14,6 +14,7 @@ import { CookiesName } from '@comments/shared';
 import { AppModule } from './app/app.module';
 import { COMMENT_QUEUE_NAME } from './comments/comments.constants';
 import { resolveCommentQueueMode } from './comments/queue/comment-job';
+import { mergeOpenApiExtras } from './swagger/openapi-extras';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -49,16 +50,28 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Comments API')
-    .setDescription('REST API for comments')
+    .setDescription(
+      [
+        `REST under \`/api/v${apiVersion}\`.`,
+        'GraphQL at `/graphql` (playground outside production; graphql-ws subscriptions enabled).',
+        'Realtime comments via Socket.IO (`/socket.io`, event `comment.created`).',
+        'JWT access/refresh and captcha are httpOnly cookies — nothing in localStorage.',
+      ].join(' '),
+    )
     .setVersion(apiVersion)
     .addCookieAuth(
       CookiesName.ACCESS_TOKEN,
       { type: 'apiKey', in: 'cookie' },
       CookiesName.ACCESS_TOKEN,
     )
+    .addCookieAuth(
+      CookiesName.REFRESH_TOKEN,
+      { type: 'apiKey', in: 'cookie' },
+      CookiesName.REFRESH_TOKEN,
+    )
     .addCookieAuth(CookiesName.CAPTCHA, { type: 'apiKey', in: 'cookie' }, CookiesName.CAPTCHA)
     .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  const document = mergeOpenApiExtras(SwaggerModule.createDocument(app, swaggerConfig));
   SwaggerModule.setup('docs', app, document, { useGlobalPrefix: true });
 
   if (resolveCommentQueueMode(config.get<string>('COMMENT_QUEUE_MODE')) === 'rabbit') {

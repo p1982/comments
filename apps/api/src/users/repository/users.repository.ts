@@ -10,6 +10,10 @@ export interface CreateUserData {
   homepage?: string;
 }
 
+export interface CreateAuthUserData extends CreateUserData {
+  passwordHash: string;
+}
+
 @Injectable()
 export class UsersRepository {
   private readonly logger = new Logger(UsersRepository.name);
@@ -34,6 +38,12 @@ export class UsersRepository {
     });
   }
 
+  findByEmailForAuth(email: string): Promise<UsersEntity | null> {
+    return this.usersRepository.findOne({
+      where: { email: email.trim().toLowerCase() },
+    });
+  }
+
   async create(data: CreateUserData, manager: EntityManager): Promise<UsersEntity> {
     this.logger.debug(data);
     const users = manager.getRepository(UsersEntity);
@@ -44,5 +54,16 @@ export class UsersRepository {
     });
     const saved = await users.save(user);
     return (await users.findOne({ where: { id: saved.id } })) ?? saved;
+  }
+
+  async createWithPassword(data: CreateAuthUserData): Promise<UsersEntity> {
+    this.logger.debug({ email: data.email, fullName: data.fullName });
+    const user = this.usersRepository.create({
+      fullName: data.fullName,
+      email: data.email.trim().toLowerCase(),
+      homepage: data.homepage ?? '',
+      passwordHash: data.passwordHash,
+    });
+    return await this.usersRepository.save(user);
   }
 }

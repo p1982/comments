@@ -13,6 +13,9 @@ export class UsersEntity extends SoftDeleteTableEntity {
   @Column({ name: 'email', type: 'varchar', length: 255 })
   email!: string;
 
+  @Column({ name: 'password_hash', type: 'varchar', length: 255, nullable: true })
+  passwordHash!: string | null;
+
   @Column({ name: 'homepage', type: 'varchar', length: 500 })
   homepage!: string | null;
 

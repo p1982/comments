@@ -29,6 +29,7 @@ import {
   commentSortOrders,
   commentsListSchema,
   commentsSchema,
+  CookiesName,
   ENDPOINTS,
   type CommentsListQuery,
   type CommentsResult,
@@ -49,11 +50,12 @@ export class CommentsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard)
-  @ApiCookieAuth('access_token')
+  @ApiCookieAuth(CookiesName.ACCESS_TOKEN)
+  @ApiCookieAuth(CookiesName.CAPTCHA)
   @ApiOperation({
     summary: 'Create a comment',
     description:
-      'Creates a root comment. Pass parentId to reply to any comment. The access_token cookie attaches the signed-in user when it is present.',
+      'Creates a root comment. Pass parentId to reply to any comment. The access_token cookie attaches the signed-in user when it is present. Captcha cookie is required.',
   })
   @ApiBody({ type: CreateCommentDto })
   @ApiCreatedResponse({ type: CommentResponseDto })
