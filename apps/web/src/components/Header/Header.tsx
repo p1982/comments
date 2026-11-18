@@ -1,12 +1,13 @@
 'use client';
 
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import AuthModal, { type AuthMode } from '@/components/AuthModal/AuthModal';
+
+import { HeaderRoot } from './Header.styled';
 
 const Header = () => {
   const t = useTranslations('Auth');
@@ -21,18 +22,7 @@ const Header = () => {
 
   return (
     <>
-      <Box
-        component="header"
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 1,
-          width: '100%',
-          px: 2,
-          py: 1.5,
-        }}
-      >
+      <HeaderRoot>
         {signedIn ? (
           <Typography variant="body2">{t('signedIn')}</Typography>
         ) : (
@@ -55,7 +45,7 @@ const Header = () => {
             </Button>
           </>
         )}
-      </Box>
+      </HeaderRoot>
       <AuthModal
         open={open}
         mode={mode}
