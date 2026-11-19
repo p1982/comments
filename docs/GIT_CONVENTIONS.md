@@ -59,11 +59,14 @@ Subject: imperative mood, no period at the end, max 100 chars.
 | `commit-msg` | Conventional Commits via commitlint            |
 | `pre-push`   | branch name + format + lint + typecheck + test |
 
+CI (`.github/workflows/ci.yml`) runs the same checks as `pre-push`, plus `npm run test:api` (Postgres service) and `npm run build`.
+
 Manual checks:
 
 ```bash
 npm run check:branch
 npm run check
+npm run test:api
 ```
 
 After `npm install`, Husky hooks are installed via the `prepare` script.

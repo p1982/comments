@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
   pull_request:
 
 concurrency:
@@ -12,6 +12,29 @@ concurrency:
 jobs:
   main:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: '1'
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: '1'
+      CAPTCHA_SECRET: test-captcha-secret
+      JWT_SECRET: test-jwt-secret
+      COMMENT_QUEUE_MODE: sync
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,19 +55,23 @@ jobs:
           GITHUB_HEAD_REF: ${{ github.head_ref }}
 
       - name: Format check
-        run: npx prettier --check .
+        run: npm run format:check
 
       - name: Lint
-        run: npx nx run-many -t lint --all
+        run: npm run lint
 
       - name: Typecheck
-        run: npx nx run-many -t typecheck -p api,shared
+        run: npm run typecheck
 
-      - name: Test and coverage
-        run: npx nx run-many -t test --all --passWithNoTests
+      - name: Unit tests and coverage
+        run: npm run test
+
+      - name: API e2e tests
+        run: npm run test:api
 
       - name: Build
-        run: npx nx run-many -t build --all
+        run: npm run build
         env:
           API_BASE_URL: http://localhost:3001
           API_VERSION: '1'
+          NODE_ENV: production
