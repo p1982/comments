@@ -30,8 +30,7 @@ const useCommentsListQuery = () => {
   const setListQuery = useCallback(
     (next: { q?: string | null; page?: number }) => {
       const params = new URLSearchParams(searchParams.toString());
-      const trimmed = next.q === undefined ? undefined : next.q.trim();
-      const nextQ = next.q === undefined ? q : trimmed.length > 0 ? trimmed : null;
+      const nextQ = next.q === undefined ? q : next.q === null ? null : next.q.trim() || null;
       const nextPage = next.page ?? 1;
 
       if (nextQ) {
