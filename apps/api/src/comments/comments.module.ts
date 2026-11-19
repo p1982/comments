@@ -18,7 +18,6 @@ import { CommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
 import { CommentsEntity } from './entity/comments.entity';
 import { CommentResolver } from './graphql/comments.resolver';
-import { UploadScalar } from './graphql/upload.scalar';
 import { CommentsGateway } from './gateway/comments.gateway';
 import { CommentCreatedListener } from './listeners/comment-created.listener';
 import { COMMENT_JOB_CLIENT, COMMENT_QUEUE, COMMENT_QUEUE_NAME } from './comments.constants';
@@ -112,7 +111,6 @@ const rabbitImports: DynamicModule[] = useRabbit
     ...(useRabbit ? [RabbitCommentQueueService] : []),
     commentQueueProvider,
     CommentResolver,
-    UploadScalar,
   ],
 })
 export class CommentsModule {}

@@ -27,11 +27,11 @@ function CommentPreview({ comment }: { comment: CommentsSchema }) {
   const initial = comment.fullName.trim().charAt(0).toUpperCase() || '?';
 
   return (
-    <Card>
+    <Card data-testid="comment-preview-card">
       <Header>
         <CommentAvatar $color={avatarColor(comment.fullName)}>{initial}</CommentAvatar>
-        <AuthorName>{comment.fullName}</AuthorName>
-        <CommentEmail>{comment.email}</CommentEmail>
+        <AuthorName data-testid="comment-preview-name">{comment.fullName}</AuthorName>
+        <CommentEmail data-testid="comment-preview-email">{comment.email}</CommentEmail>
         {comment.homepage ? (
           <CommentEmail as="a" href={comment.homepage} target="_blank" rel="noreferrer">
             {comment.homepage}
@@ -39,7 +39,10 @@ function CommentPreview({ comment }: { comment: CommentsSchema }) {
         ) : null}
         <CommentDate>{formatCommentDate(new Date().toISOString())}</CommentDate>
       </Header>
-      <CommentText dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.text) }} />
+      <CommentText
+        data-testid="comment-preview-text"
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.text) }}
+      />
     </Card>
   );
 }

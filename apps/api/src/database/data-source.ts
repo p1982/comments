@@ -22,7 +22,9 @@ export const getDataSource = (config: ConfigService): DataSourceOptions => ({
   database: config.get<string>('DB_NAME', 'comments'),
   entities: [CommentsEntity, UsersEntity, AttachmentsEntity, OutboxEventsEntity],
   migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
-  synchronize: false,
+  synchronize: ['true', '1', 'yes'].includes(
+    (config.get<string>('DB_SYNC') ?? 'false').toLowerCase(),
+  ),
 });
 
 export default new DataSource(getDataSource(config));

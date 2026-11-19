@@ -30,8 +30,8 @@ describe('HealthService', () => {
   const httpAdapterHost: { httpAdapter?: { getHttpServer: jest.Mock } } = {};
   const service = new HealthService(
     dataSource as unknown as DataSource,
-    schemaHost as unknown as GraphQLSchemaHost,
     httpAdapterHost as unknown as HttpAdapterHost,
+    schemaHost as unknown as GraphQLSchemaHost,
   );
 
   beforeEach(() => {
@@ -77,6 +77,19 @@ describe('HealthService', () => {
     });
 
     await expect(service.check()).resolves.toMatchObject({ status: 'error', graphql: 'down' });
+  });
+
+  it('reports GraphQL down when the schema host is missing', async () => {
+    const withoutSchema = new HealthService(
+      dataSource as unknown as DataSource,
+      httpAdapterHost as unknown as HttpAdapterHost,
+      null,
+    );
+
+    await expect(withoutSchema.check()).resolves.toMatchObject({
+      status: 'error',
+      graphql: 'down',
+    });
   });
 
   it('reports GraphQL down when the health query fails', async () => {

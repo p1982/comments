@@ -67,13 +67,14 @@ const CommentsList = ({ commentsIds, rootId, depth = 0 }: CommentsListProps) => 
                 type="button"
                 $active={sort === field}
                 aria-pressed={sort === field}
+                data-testid={`sort-${field}`}
                 onClick={() => onSort(field)}
               >
                 {sortLabels[field]}
                 {sort === field ? (order === 'asc' ? ' ↑' : ' ↓') : ''}
               </SortButton>
             ))}
-          <Button type="button" onClick={openRootForm}>
+          <Button type="button" onClick={openRootForm} data-testid="add-comment">
             Add Comment
           </Button>
         </SortBar>

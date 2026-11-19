@@ -143,7 +143,7 @@ function CommentForm({ parentId }: CommentFormProps) {
   };
 
   return (
-    <Box>
+    <Box data-testid="comment-form">
       <Box>
         <Button type="button" onClick={() => insertTag('i')}>
           [i]
@@ -182,6 +182,7 @@ function CommentForm({ parentId }: CommentFormProps) {
             {...register('fullName')}
             placeholder={t('nameLabel')}
             error={Boolean(errors.fullName)}
+            slotProps={{ htmlInput: { 'data-testid': 'comment-full-name' } }}
           />
           <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
             {errors.fullName?.message}
@@ -193,6 +194,7 @@ function CommentForm({ parentId }: CommentFormProps) {
             {...register('email')}
             placeholder={t('emailLabel')}
             error={Boolean(errors.email)}
+            slotProps={{ htmlInput: { 'data-testid': 'comment-email' } }}
           />
           <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
             {errors.email?.message}
@@ -204,6 +206,7 @@ function CommentForm({ parentId }: CommentFormProps) {
             {...register('homepage')}
             placeholder={t('homepageLabel')}
             error={Boolean(errors.homepage)}
+            slotProps={{ htmlInput: { 'data-testid': 'comment-homepage' } }}
           />
           <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
             {errors.homepage?.message}
@@ -215,6 +218,7 @@ function CommentForm({ parentId }: CommentFormProps) {
             type="file"
             accept="image/jpeg,image/png,image/gif"
             aria-label={t('imageLabel')}
+            data-testid="comment-image"
             ref={imageRef}
             onChange={(event: ChangeEvent<HTMLInputElement>) => {
               setImage(event.target.files?.[0] ?? null);
@@ -231,6 +235,7 @@ function CommentForm({ parentId }: CommentFormProps) {
             type="file"
             accept=".txt,text/plain"
             aria-label={t('textFileLabel')}
+            data-testid="comment-text-file"
             ref={textFileRef}
             onChange={(event: ChangeEvent<HTMLInputElement>) =>
               setTextFile(event.target.files?.[0] ?? null)
@@ -250,6 +255,7 @@ function CommentForm({ parentId }: CommentFormProps) {
             placeholder={t('textLabel')}
             {...textField}
             error={Boolean(errors.text)}
+            slotProps={{ htmlInput: { 'data-testid': 'comment-text' } }}
             inputRef={(node: HTMLTextAreaElement | null) => {
               ref(node);
               textRef.current = node;
@@ -265,19 +271,35 @@ function CommentForm({ parentId }: CommentFormProps) {
             {...register('captcha')}
             placeholder={t('captchaLabel')}
             error={Boolean(errors.captcha)}
+            slotProps={{ htmlInput: { 'data-testid': 'comment-captcha' } }}
           />
           <Box sx={{ minHeight: 40, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
             {errors.captcha?.message}
           </Box>
         </Box>
-        <Button variant="contained" type="submit" disabled={isSubmitting}>
+        <Button
+          variant="contained"
+          type="submit"
+          disabled={isSubmitting}
+          data-testid="comment-submit"
+        >
           {t('submit')}
         </Button>
-        <Button variant="contained" type="button" onClick={handlePreview}>
+        <Button
+          variant="contained"
+          type="button"
+          onClick={handlePreview}
+          data-testid="comment-preview"
+        >
           {t('preview')}
         </Button>
         {preview && <CommentPreview comment={preview} />}
-        <Button variant="contained" type="button" onClick={closeCommentForm}>
+        <Button
+          variant="contained"
+          type="button"
+          onClick={closeCommentForm}
+          data-testid="comment-cancel"
+        >
           {t('cancel')}{' '}
         </Button>
       </Box>

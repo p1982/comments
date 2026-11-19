@@ -86,10 +86,10 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
 
   return (
     <>
-      <Card>
+      <Card data-testid="comment-card" data-comment-id={comment.id}>
         <Header>
           <CommentAvatar $color={avatarColor(comment.fullName)}>{initial}</CommentAvatar>
-          <AuthorName>{comment.fullName}</AuthorName>
+          <AuthorName data-testid="comment-card-name">{comment.fullName}</AuthorName>
           {comment.parentId === null && (
             <ActionButton
               size="small"
@@ -103,8 +103,10 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
           <AddCommentButton type="button" aria-label="Add comment" onClick={handleReply}>
             <AddCommentOutlinedIcon />
           </AddCommentButton>
-          <CommentEmail>{comment.email}</CommentEmail>
-          <CommentDate>{formatCommentDate(comment.createdAt)}</CommentDate>
+          <CommentEmail data-testid="comment-card-email">{comment.email}</CommentEmail>
+          <CommentDate data-testid="comment-card-date">
+            {formatCommentDate(comment.createdAt)}
+          </CommentDate>
           <ActionRow>
             <ActionButton size="small" aria-label="Link">
               <TagIcon />
@@ -129,14 +131,27 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
             </ActionButton>
           </VoteRow>
         </Header>
-        <CommentText dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.text) }} />
+        <CommentText
+          data-testid="comment-card-text"
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.text) }}
+        />
         {comment.attachments.map((file) =>
           file.fileType === 'image' ? (
-            <Button type="button" key={file.id} onClick={() => setLightbox(file)}>
+            <Button
+              type="button"
+              key={file.id}
+              data-testid="comment-attachment-image"
+              onClick={() => setLightbox(file)}
+            >
               <AttachmentThumb src={`${apiOrigin}${file.url}`} alt={file.fileName} />
             </Button>
           ) : (
-            <Button type="button" key={file.id} onClick={() => setLightbox(file)}>
+            <Button
+              type="button"
+              key={file.id}
+              data-testid="comment-attachment-text"
+              onClick={() => setLightbox(file)}
+            >
               {file.fileName}
             </Button>
           ),

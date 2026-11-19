@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { GraphQLSchemaHost } from '@nestjs/graphql';
 import { graphql } from 'graphql';
@@ -21,8 +21,8 @@ interface HttpServerWithListeners {
 export class HealthService {
   constructor(
     private readonly dataSource: DataSource,
-    private readonly schemaHost: GraphQLSchemaHost,
     private readonly httpAdapterHost: HttpAdapterHost,
+    @Optional() @Inject(GraphQLSchemaHost) private readonly schemaHost: GraphQLSchemaHost | null,
   ) {}
 
   async check(): Promise<HealthReport> {
@@ -48,8 +48,13 @@ export class HealthService {
 
   private async checkGraphql(): Promise<DependencyStatus> {
     try {
+      const schema = this.schemaHost?.schema;
+      if (!schema) {
+        return 'down';
+      }
+
       const result = await graphql({
-        schema: this.schemaHost.schema,
+        schema,
         source: '{ health }',
       });
       const health: unknown = result.data?.['health'];

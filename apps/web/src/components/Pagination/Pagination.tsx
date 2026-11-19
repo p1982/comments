@@ -9,7 +9,7 @@ interface PaginationProps {
 
 export default function PaginationOutlined({ totalPages, page, onPageChange }: PaginationProps) {
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} data-testid="comments-pagination">
       <Pagination
         page={page}
         count={totalPages}

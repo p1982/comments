@@ -22,7 +22,12 @@ export class SearchService implements OnModuleInit {
     if (!this.elasticsearch) {
       return;
     }
-    await this.createCommentsIndex();
+    try {
+      await this.createCommentsIndex();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.warn(`Elasticsearch index bootstrap skipped: ${message}`);
+    }
   }
 
   private async createCommentsIndex(): Promise<void> {
