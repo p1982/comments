@@ -79,6 +79,19 @@ describe('HealthService', () => {
     await expect(service.check()).resolves.toMatchObject({ status: 'error', graphql: 'down' });
   });
 
+  it('reports GraphQL down when the schema host is missing', async () => {
+    const withoutSchema = new HealthService(
+      dataSource as unknown as DataSource,
+      httpAdapterHost as unknown as HttpAdapterHost,
+      null,
+    );
+
+    await expect(withoutSchema.check()).resolves.toMatchObject({
+      status: 'error',
+      graphql: 'down',
+    });
+  });
+
   it('reports GraphQL down when the health query fails', async () => {
     Object.defineProperty(schemaHost, 'schema', {
       configurable: true,

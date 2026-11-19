@@ -47,13 +47,14 @@ export class HealthService {
   }
 
   private async checkGraphql(): Promise<DependencyStatus> {
-    if (!this.schemaHost?.schema) {
-      return 'down';
-    }
-
     try {
+      const schema = this.schemaHost?.schema;
+      if (!schema) {
+        return 'down';
+      }
+
       const result = await graphql({
-        schema: this.schemaHost.schema,
+        schema,
         source: '{ health }',
       });
       const health: unknown = result.data?.['health'];
