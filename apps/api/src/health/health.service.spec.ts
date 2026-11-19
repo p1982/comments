@@ -30,8 +30,8 @@ describe('HealthService', () => {
   const httpAdapterHost: { httpAdapter?: { getHttpServer: jest.Mock } } = {};
   const service = new HealthService(
     dataSource as unknown as DataSource,
-    schemaHost as unknown as GraphQLSchemaHost,
     httpAdapterHost as unknown as HttpAdapterHost,
+    schemaHost as unknown as GraphQLSchemaHost,
   );
 
   beforeEach(() => {

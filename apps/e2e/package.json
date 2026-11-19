@@ -1,0 +1,19 @@
+{
+  "name": "@comments/e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "tags": [
+      "type:e2e"
+    ],
+    "targets": {
+      "e2e": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "playwright test",
+          "cwd": "apps/e2e"
+        }
+      }
+    }
+  }
+}

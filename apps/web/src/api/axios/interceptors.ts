@@ -18,7 +18,13 @@ export const setupInterceptors = (instance: AxiosInstance): void => {
   let refreshPromise: Promise<void> | null = null;
 
   instance.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => config,
+    (config: InternalAxiosRequestConfig) => {
+      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+        // Let the browser set multipart boundary; default JSON content-type breaks uploads.
+        config.headers.delete('Content-Type');
+      }
+      return config;
+    },
     (error: unknown) => Promise.reject(toError(error)),
   );
 

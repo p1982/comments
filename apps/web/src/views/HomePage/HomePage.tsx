@@ -36,13 +36,15 @@ const HomePage = () => {
     })();
   }, [fetchComments, limit, page, q, searchComments]);
 
-  if (isLoading && commentsIds.length === 0) {
+  const showRootForm = commentTarget !== null && commentTarget.parentId === null;
+
+  if (isLoading && commentsIds.length === 0 && !showRootForm) {
     return <Loader />;
   }
 
   return (
-    <main>
-      {commentTarget?.parentId === null && <CommentForm key="root" />}
+    <main data-testid="home-page">
+      {showRootForm && <CommentForm key="root" />}
       <CommentsList commentsIds={commentsIds} />
     </main>
   );
