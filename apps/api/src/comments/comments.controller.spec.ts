@@ -30,7 +30,7 @@ describe('CommentsController', () => {
   it('creates a comment without a signed-in user', async () => {
     commentsService.createComment.mockResolvedValue({ id: '1' });
 
-    await controller.createComment({} as RequestWithUser, body);
+    await controller.createComment(null, {} as RequestWithUser, body);
 
     expect(commentsService.createComment).toHaveBeenCalledWith(
       body,
@@ -46,7 +46,8 @@ describe('CommentsController', () => {
     commentsService.createComment.mockResolvedValue({ id: '1' });
 
     await controller.createComment(
-      { user, cookies: { captcha: 'signed-token' } } as RequestWithUser,
+      user,
+      { cookies: { captcha: 'signed-token' } } as RequestWithUser,
       body,
     );
 
@@ -63,7 +64,7 @@ describe('CommentsController', () => {
     const textFile = { originalname: 'note.txt' } as Express.Multer.File;
     commentsService.createComment.mockResolvedValue({ id: '1' });
 
-    await controller.createComment({} as RequestWithUser, body, { textFile: [textFile] });
+    await controller.createComment(null, {} as RequestWithUser, body, { textFile: [textFile] });
 
     expect(commentsService.createComment).toHaveBeenCalledWith(
       body,

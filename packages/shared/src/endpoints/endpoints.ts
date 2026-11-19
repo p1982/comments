@@ -5,6 +5,7 @@ export enum ENDPOINTS {
   REFRESH = '/refresh',
   COMMENTS = '/comments',
   CAPTCHA = '/captcha',
+  SEARCH = '/search',
 }
 
 export const authEndpoint = (

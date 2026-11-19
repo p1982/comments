@@ -3,7 +3,9 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { getTranslations } from 'next-intl/server';
+import { Suspense } from 'react';
 
+import Loader from '@/components/Loader/Loader';
 import HomePage from '@/views/HomePage/HomePage';
 
 import { Link } from '../../i18n/navigation';
@@ -29,7 +31,9 @@ export default async function page() {
               </Link>
             </Stack>
           </Stack>
-          <HomePage />
+          <Suspense fallback={<Loader />}>
+            <HomePage />
+          </Suspense>
         </Stack>
       </Container>
     </Box>

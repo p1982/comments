@@ -1,7 +1,7 @@
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 
 import Header from '@/components/Header/Header';
 import { ApolloWrapper, AppProviders } from '@/components/providers';
@@ -32,7 +32,9 @@ export default async function LocaleLayout({
         <ApolloWrapper>
           <NextIntlClientProvider locale={locale} messages={messages}>
             <AppProviders>
-              <Header />
+              <Suspense fallback={null}>
+                <Header />
+              </Suspense>
               {children}
             </AppProviders>
           </NextIntlClientProvider>

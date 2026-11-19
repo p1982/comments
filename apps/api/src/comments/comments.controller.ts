@@ -34,9 +34,14 @@ import {
   type CommentsListQuery,
   type CommentsResult,
   type CommentsSchema,
+  commentsSearchSchema,
+  type CommentsSearchQuery,
 } from '@comments/shared';
 import { ZodValidationPipe } from '@app/common/pipes/validation.pipe';
+import { User } from '@app/common/pipes/user.pipe';
 import { AuthGuard, type RequestWithUser } from '@app/common/guards/auth.guard';
+import type { UsersEntity } from '@app/users/entity/users.entity';
+import { SearchService } from '@app/search/search.service';
 
 import { CommentsService } from './comments.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
@@ -45,7 +50,10 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 @ApiTags(ENDPOINTS.COMMENTS)
 @Controller(ENDPOINTS.COMMENTS)
 export class CommentsController {
-  constructor(private readonly commentsService: CommentsService) {}
+  constructor(
+    private readonly commentsService: CommentsService,
+    private readonly searchService: SearchService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -66,6 +74,7 @@ export class CommentsController {
     ]),
   )
   createComment(
+    @User() user: UsersEntity | null,
     @Req() request: RequestWithUser,
     @Body(new ZodValidationPipe(commentsSchema)) body: CommentsSchema,
     @UploadedFiles()
@@ -77,7 +86,7 @@ export class CommentsController {
     return this.commentsService.createComment(
       body,
       request.cookies?.captcha ?? null,
-      request.user ?? null,
+      user,
       files?.image?.[0],
       files?.textFile?.[0],
     );
@@ -111,6 +120,21 @@ export class CommentsController {
     @Query(new ZodValidationPipe(commentsListSchema)) query: CommentsListQuery,
   ): Promise<CommentsResult> {
     return this.commentsService.getComments(query);
+  }
+
+  @Get(ENDPOINTS.SEARCH)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Search comments' })
+  @ApiQuery({
+    name: 'q',
+    required: true,
+    schema: { type: 'string', minLength: 1, maxLength: 100 },
+  })
+  @ApiOkResponse({ type: CommentResponseDto, isArray: true })
+  searchComments(
+    @Query(new ZodValidationPipe(commentsSearchSchema)) query: CommentsSearchQuery,
+  ): Promise<CommentsResult> {
+    return this.searchService.search(query);
   }
 
   @Get(':rootId')

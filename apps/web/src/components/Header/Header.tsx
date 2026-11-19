@@ -6,8 +6,9 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import AuthModal, { type AuthMode } from '@/components/AuthModal/AuthModal';
+import Search from '@/components/Search/Search';
 
-import { HeaderRoot } from './Header.styled';
+import { HeaderActions, HeaderCenter, HeaderRoot } from './Header.styled';
 
 const Header = () => {
   const t = useTranslations('Auth');
@@ -23,28 +24,34 @@ const Header = () => {
   return (
     <>
       <HeaderRoot>
-        {signedIn ? (
-          <Typography variant="body2">{t('signedIn')}</Typography>
-        ) : (
-          <>
-            <Button
-              type="button"
-              variant="contained"
-              color="primary"
-              onClick={() => openAuth('signin')}
-            >
-              {t('signIn')}
-            </Button>
-            <Button
-              type="button"
-              variant="contained"
-              color="primary"
-              onClick={() => openAuth('signup')}
-            >
-              {t('signUp')}
-            </Button>
-          </>
-        )}
+        <div />
+        <HeaderCenter>
+          <Search />
+        </HeaderCenter>
+        <HeaderActions>
+          {signedIn ? (
+            <Typography variant="body2">{t('signedIn')}</Typography>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="contained"
+                color="primary"
+                onClick={() => openAuth('signin')}
+              >
+                {t('signIn')}
+              </Button>
+              <Button
+                type="button"
+                variant="contained"
+                color="primary"
+                onClick={() => openAuth('signup')}
+              >
+                {t('signUp')}
+              </Button>
+            </>
+          )}
+        </HeaderActions>
       </HeaderRoot>
       <AuthModal
         open={open}

@@ -15,7 +15,10 @@
     "imageLabel": "Картинка JPG, PNG або GIF",
     "textFileLabel": "Текстовий файл TXT до 100 КБ",
     "nameRequired": "Імʼя обовʼязкове",
-    "messageRequired": "Повідомлення обовʼязкове"
+    "messageRequired": "Повідомлення обовʼязкове",
+    "searchLabel": "Пошук коментарів",
+    "search": "Шукати",
+    "searchClear": "Очистити"
   },
   "Auth": {
     "signIn": "Увійти",
