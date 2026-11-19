@@ -12,7 +12,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DataSource, type EntityManager } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
@@ -28,18 +27,14 @@ import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 import { signCaptcha } from '@app/captcha/captcha.service';
 import { UsersEntity } from '@app/users/entity/users.entity';
 import { UsersRepository } from '@app/users/repository/users.repository';
+import { OutboxRepository } from '@app/outbox/repository/outbox.repository';
 
 import { toCommentResponse } from './dto/comment-response.dto';
 import { CommentsRepository } from './repository/comments.repository';
 import { CommentsEntity } from './entity/comments.entity';
 import { fitImage } from './helpers/fit-image';
 import { imageKind } from './helpers/image-kind';
-import {
-  COMMENT_CREATED,
-  COMMENT_QUEUE,
-  COMMENTS_LIST_CACHE_VERSION_KEY,
-} from './comments.constants';
-import { CommentCreatedEvent } from './events/comment-created.event';
+import { COMMENT_QUEUE, COMMENTS_LIST_CACHE_VERSION_KEY } from './comments.constants';
 import { commentsListCacheKey } from './helpers/comments-list-cache-key';
 import { type CommentQueuePort, resolveCommentQueueMode } from './queue/comment-job';
 
@@ -52,7 +47,7 @@ export class CommentsService {
     private readonly commentsRepository: CommentsRepository,
     private readonly configService: ConfigService,
     private readonly attachmentsRepository: AttachmentsRepository,
-    private readonly events: EventEmitter2,
+    private readonly outboxRepository: OutboxRepository,
     @Inject(COMMENT_QUEUE) private readonly commentQueue: CommentQueuePort,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
@@ -225,25 +220,33 @@ export class CommentsService {
             relations: { attachments: true },
           })) ?? savedComment;
 
-        return toCommentResponse(commentWithAttachments, savedUser);
+        const commentResponse = toCommentResponse(commentWithAttachments, savedUser);
+
+        await this.outboxRepository.insert(
+          {
+            aggregateType: 'comment',
+            aggregatedId: id,
+            eventType: 'comment.created',
+            payload: { comment: commentResponse },
+          },
+          manager,
+        );
+        this.logger.debug(`Outbox enqueued comment.created for ${id}`);
+        return commentResponse;
       });
 
-      if (useQueue) {
-        if (pendingImage) {
-          await this.commentQueue.enqueue({
-            type: 'process-image',
-            commentId: response.id,
-            fileName: pendingImage.fileName,
-            buffer: pendingImage.buffer,
-          });
-        }
+      if (pendingImage) {
         await this.commentQueue.enqueue({
-          type: 'comment-created',
-          comment: response,
+          type: 'process-image',
+          commentId: response.id,
+          fileName: pendingImage.fileName,
+          buffer: pendingImage.buffer,
         });
-      } else {
-        this.events.emit(COMMENT_CREATED, new CommentCreatedEvent(response));
+        this.logger.debug(`Queued process-image for ${response.id}`);
       }
+
+      // Invalidate list cache in-request so GET is not stale while outbox handles WS/ES.
+      await this.bumpCommentsListCache();
 
       return response;
     } catch (error) {
@@ -253,6 +256,13 @@ export class CommentsService {
       this.logger.error(error);
       throw new InternalServerErrorException(ERROR_MESSAGES.internalServerError);
     }
+  }
+
+  private async bumpCommentsListCache(): Promise<void> {
+    const version = (await this.cache.get<number>(COMMENTS_LIST_CACHE_VERSION_KEY)) ?? 0;
+    const next = version + 1;
+    await this.cache.set(COMMENTS_LIST_CACHE_VERSION_KEY, next);
+    this.logger.debug(`comments list cache bumped to v${String(next)}`);
   }
 
   private async saveFittedImage(

@@ -54,7 +54,8 @@ async function bootstrap() {
       [
         `REST under \`/api/v${apiVersion}\`.`,
         'GraphQL at `/graphql` (playground outside production; graphql-ws subscriptions enabled).',
-        'Realtime comments via Socket.IO (`/socket.io`, event `comment.created`).',
+        'Realtime comments via Socket.IO (`/socket.io`, event `comment.created` after outbox publish).',
+        'Create writes through a transactional outbox so list/search/WS side effects do not block the HTTP response.',
         'JWT access/refresh and captcha are httpOnly cookies — nothing in localStorage.',
       ].join(' '),
     )

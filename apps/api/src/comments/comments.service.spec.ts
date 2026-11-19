@@ -21,8 +21,7 @@ import type { EntityManager } from 'typeorm';
 import type { UsersEntity } from '@app/users/entity/users.entity';
 
 import { CommentsService } from './comments.service';
-import { COMMENT_CREATED } from './comments.constants';
-import { CommentCreatedEvent } from './events/comment-created.event';
+import { COMMENTS_LIST_CACHE_VERSION_KEY } from './comments.constants';
 
 const captchaSecret = 'test-captcha-secret';
 const captcha = 'AB12C';
@@ -52,7 +51,7 @@ describe('CommentsService', () => {
     get: jest.fn((_key: string, defaultValue?: string) => defaultValue),
   };
   const attachmentsRepository = { create: jest.fn() };
-  const events = { emit: jest.fn() };
+  const outboxRepository = { insert: jest.fn() };
   const commentQueueService = { enqueue: jest.fn() };
   const cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() };
   const service = new CommentsService(
@@ -61,7 +60,7 @@ describe('CommentsService', () => {
     commentsRepository as never,
     configService as never,
     attachmentsRepository as never,
-    events as never,
+    outboxRepository as never,
     commentQueueService,
     cache as never,
   );
@@ -103,6 +102,7 @@ describe('CommentsService', () => {
     configService.getOrThrow.mockReturnValue(captchaSecret);
     cache.get.mockResolvedValue(undefined);
     cache.set.mockResolvedValue(undefined);
+    outboxRepository.insert.mockResolvedValue({ id: 'outbox-1' });
   });
 
   it('creates a user inside the transaction when the email is unknown', async () => {
@@ -426,7 +426,7 @@ describe('CommentsService', () => {
       BadRequestException,
     );
     expect(dataSource.transaction).not.toHaveBeenCalled();
-    expect(events.emit).not.toHaveBeenCalled();
+    expect(outboxRepository.insert).not.toHaveBeenCalled();
     expect(commentQueueService.enqueue).not.toHaveBeenCalled();
   });
 
@@ -436,11 +436,11 @@ describe('CommentsService', () => {
     await expect(service.createComment(comment, captchaToken, null)).rejects.toBeInstanceOf(
       InternalServerErrorException,
     );
-    expect(events.emit).not.toHaveBeenCalled();
+    expect(outboxRepository.insert).not.toHaveBeenCalled();
     expect(commentQueueService.enqueue).not.toHaveBeenCalled();
   });
 
-  it('emits comment.created after a successful sync create', async () => {
+  it('writes comment.created to the outbox after a successful sync create', async () => {
     const savedUser = {
       id: 'user-1',
       fullName: 'Ann',
@@ -452,13 +452,21 @@ describe('CommentsService', () => {
 
     const response = await service.createComment(comment, captchaToken, null);
 
-    expect(events.emit).toHaveBeenCalledWith(COMMENT_CREATED, expect.any(CommentCreatedEvent));
-    const event = events.emit.mock.calls[0]?.[1] as CommentCreatedEvent;
-    expect(event.comment).toEqual(response);
+    expect(outboxRepository.insert).toHaveBeenCalledWith(
+      {
+        aggregateType: 'comment',
+        aggregatedId: savedComment.id,
+        eventType: 'comment.created',
+        payload: { comment: response },
+      },
+      manager,
+    );
+    expect(cache.get).toHaveBeenCalledWith(COMMENTS_LIST_CACHE_VERSION_KEY);
+    expect(cache.set).toHaveBeenCalledWith(COMMENTS_LIST_CACHE_VERSION_KEY, 1);
     expect(commentQueueService.enqueue).not.toHaveBeenCalled();
   });
 
-  it('enqueues image processing and comment.created when mode is memory', async () => {
+  it('enqueues image processing and writes outbox when mode is memory', async () => {
     setQueueMode('memory');
     const savedUser = {
       id: 'user-1',
@@ -481,20 +489,23 @@ describe('CommentsService', () => {
 
     expect(writeFile).not.toHaveBeenCalled();
     expect(attachmentsRepository.create).not.toHaveBeenCalled();
-    expect(events.emit).not.toHaveBeenCalled();
+    expect(outboxRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'comment.created',
+        payload: { comment: response },
+      }),
+      manager,
+    );
+    expect(commentQueueService.enqueue).toHaveBeenCalledTimes(1);
     expect(commentQueueService.enqueue).toHaveBeenCalledWith({
       type: 'process-image',
       commentId: response.id,
       fileName: 'photo.png',
       buffer: png,
     });
-    expect(commentQueueService.enqueue).toHaveBeenCalledWith({
-      type: 'comment-created',
-      comment: response,
-    });
   });
 
-  it('enqueues only comment.created when mode is rabbit and there is no image', async () => {
+  it('writes outbox and does not enqueue when mode is rabbit without image', async () => {
     setQueueMode('rabbit');
     const savedUser = {
       id: 'user-1',
@@ -507,12 +518,14 @@ describe('CommentsService', () => {
 
     const response = await service.createComment(comment, captchaToken, null);
 
-    expect(events.emit).not.toHaveBeenCalled();
-    expect(commentQueueService.enqueue).toHaveBeenCalledTimes(1);
-    expect(commentQueueService.enqueue).toHaveBeenCalledWith({
-      type: 'comment-created',
-      comment: response,
-    });
+    expect(outboxRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'comment.created',
+        payload: { comment: response },
+      }),
+      manager,
+    );
+    expect(commentQueueService.enqueue).not.toHaveBeenCalled();
   });
 
   it('writes a fitted image into assets', async () => {

@@ -21,9 +21,9 @@ export class OutboxEventsEntity extends CreatedAtEntity {
   @Column({ name: 'attempts', type: 'int' })
   attempts!: number;
 
-  @Column({ name: 'error_message', type: 'varchar', length: 100 })
+  @Column({ name: 'error_message', type: 'varchar', length: 100, nullable: true })
   errorMessage!: string | null;
 
-  @Column({ name: 'processed_at', type: 'timestamp' })
+  @Column({ name: 'processed_at', type: 'timestamp', nullable: true })
   processedAt!: Date | null;
 }
