@@ -6,6 +6,7 @@ jest.mock('@elastic/elasticsearch', () => ({
   Client: jest.fn(),
 }));
 
+import type { FactoryProvider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from '@elastic/elasticsearch';
 
@@ -13,6 +14,9 @@ import { elasticsearchProvider } from './elasticsearch.provider';
 
 describe('elasticsearchProvider', () => {
   const ClientMock = Client as unknown as jest.Mock;
+  const factory = (elasticsearchProvider as FactoryProvider).useFactory as (
+    config: ConfigService,
+  ) => Client | null;
 
   beforeEach(() => {
     ClientMock.mockReset();
@@ -23,7 +27,6 @@ describe('elasticsearchProvider', () => {
       get: jest.fn().mockReturnValue(undefined),
     } as unknown as ConfigService;
 
-    const factory = elasticsearchProvider.useFactory as (config: ConfigService) => Client | null;
     expect(factory(config)).toBeNull();
     expect(ClientMock).not.toHaveBeenCalled();
   });
@@ -36,7 +39,6 @@ describe('elasticsearchProvider', () => {
       }),
     } as unknown as ConfigService;
 
-    const factory = elasticsearchProvider.useFactory as (config: ConfigService) => Client | null;
     factory(config);
 
     expect(ClientMock).toHaveBeenCalledWith({ node: 'http://localhost:9200' });
@@ -52,7 +54,6 @@ describe('elasticsearchProvider', () => {
       }),
     } as unknown as ConfigService;
 
-    const factory = elasticsearchProvider.useFactory as (config: ConfigService) => Client | null;
     factory(config);
 
     expect(ClientMock).toHaveBeenCalledWith({
