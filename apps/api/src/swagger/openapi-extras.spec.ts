@@ -10,7 +10,7 @@ describe('openapi extras', () => {
     expect(openApiExtraPaths['/graphql'].post.description).toContain('searchComments');
     expect(
       openApiExtraPaths['/graphql'].post.requestBody.content['application/json'].examples
-        .searchComments.variables,
+        .searchComments.value.variables,
     ).toEqual({ q: 'nestjs', page: 1, limit: 25 });
   });
 
