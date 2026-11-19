@@ -11,6 +11,11 @@ NX monorepo: **NestJS** API + **Next.js** web, TypeORM/PostgreSQL, MUI, react-ho
 | Web      | Next.js App Router, MUI, styled-components, react-hook-form, next-intl                                   |
 | Quality  | Strict TS (`exactOptionalPropertyTypes`, `verbatimModuleSyntax`), ESLint strictTypeChecked, Prettier, CI |
 
+## Docs
+
+- [Comments scale plan](docs/comments-scale.md) — read / write / files under 1M comments and 100k users/day
+- [Git conventions](docs/GIT_CONVENTIONS.md)
+
 ## Database
 
 Target schema for comments: `users`, `comments`, `attachments`, `outbox_events`.
