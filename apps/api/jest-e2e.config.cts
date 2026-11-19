@@ -13,7 +13,7 @@ module.exports = {
   testMatch: ['<rootDir>/src/**/*.e2e-spec.ts'],
   setupFiles: ['<rootDir>/src/test/e2e-env.ts'],
   moduleNameMapper: {
-    ...unitConfig.moduleNameMapper,
+    '^@app/(.*)$': '<rootDir>/src/$1',
     '^@comments/shared$': '<rootDir>/../../packages/shared/src/index.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },

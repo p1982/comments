@@ -19,8 +19,8 @@ export class EventEmitter2 {
 export const EventEmitterModule = {
   forRoot: () => ({
     module: class EventEmitterModule {},
-    providers: [] as unknown[],
-    exports: [] as unknown[],
+    providers: [EventEmitter2],
+    exports: [EventEmitter2],
     global: true,
   }),
 };

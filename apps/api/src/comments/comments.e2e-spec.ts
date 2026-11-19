@@ -30,13 +30,12 @@ const captchaToken = createHmac('sha256', process.env['CAPTCHA_SECRET'] ?? '')
   .digest('hex');
 
 const ensureTestDatabase = async () => {
-  const admin = new Client({
-    host: process.env['DB_HOST'] ?? 'localhost',
-    port: Number(process.env['DB_PORT'] ?? '5432'),
-    user: process.env['DB_USER'] ?? 'postgres',
-    password: process.env['DB_PASSWORD'] ?? '1',
-    database: 'postgres',
-  });
+  const host = process.env['DB_HOST'] ?? 'localhost';
+  const port = Number(process.env['DB_PORT'] ?? '5432');
+  const user = process.env['DB_USER'] ?? 'postgres';
+  const password = process.env['DB_PASSWORD'] ?? '1';
+
+  const admin = new Client({ host, port, user, password, database: 'postgres' });
   await admin.connect();
   const existing = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [
     'comments_test',
@@ -45,6 +44,11 @@ const ensureTestDatabase = async () => {
     await admin.query('CREATE DATABASE comments_test');
   }
   await admin.end();
+
+  const testDb = new Client({ host, port, user, password, database: 'comments_test' });
+  await testDb.connect();
+  await testDb.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+  await testDb.end();
 };
 
 describe('comments API', () => {

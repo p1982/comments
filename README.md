@@ -83,10 +83,21 @@ npm run lint
 npm run format
 npm run typecheck
 npm run test
+npm run test:api       # Nest API e2e (needs Postgres)
+npm run test:e2e       # Playwright browser e2e
 npm run build
 npm run check          # branch + format + lint + typecheck + test
 npm run check:branch
 ```
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) mirrors pre-push checks and also runs API e2e against Postgres:
+
+- branch name (PRs)
+- format, lint, typecheck, unit tests
+- `npm run test:api`
+- build
 
 ## Git conventions
 

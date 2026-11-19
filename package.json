@@ -12,7 +12,7 @@
     "build": "nx run-many -t build --all",
     "lint": "nx run-many -t lint --all",
     "test": "nx run-many -t test --all --passWithNoTests",
-    "test:api": "NODE_OPTIONS='--experimental-require-module' jest --config apps/api/jest-e2e.config.cts",
+    "test:api": "NODE_OPTIONS='--experimental-require-module' jest --config apps/api/jest-e2e.config.cts --forceExit",
     "test:e2e": "playwright test --config apps/e2e/playwright.config.ts",
     "typecheck": "nx run-many -t typecheck -p api,shared",
     "format": "prettier --write .",
