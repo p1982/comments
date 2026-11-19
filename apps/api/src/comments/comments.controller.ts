@@ -127,8 +127,8 @@ export class CommentsController {
   @ApiOperation({
     summary: 'Search comments',
     description:
-      'Full-text search over comment content and author name via Elasticsearch. ' +
-      'Returns hydrated comments from Postgres in hit order. HTML tags are stripped for matching only.',
+      'Full-text search over plainText and author name via Elasticsearch. ' +
+      'Returns hydrated comments from Postgres in hit order. HTML tags are stripped into plainText for matching only.',
   })
   @ApiQuery({
     name: 'q',

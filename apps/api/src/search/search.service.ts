@@ -50,7 +50,7 @@ export class SearchService implements OnModuleInit {
               keyword: { type: 'keyword' },
             },
           },
-          content: {
+          plainText: {
             type: 'text',
             analyzer: 'standard',
           },
@@ -61,8 +61,8 @@ export class SearchService implements OnModuleInit {
   }
 
   async index({ id, parentId, fullName, text, createdAt }: IndexCommentInput): Promise<void> {
-    const content = toPlainText(text);
-    if (!content) {
+    const plainText = toPlainText(text);
+    if (!plainText) {
       return;
     }
 
@@ -70,7 +70,7 @@ export class SearchService implements OnModuleInit {
       id,
       parentId,
       username: fullName,
-      content,
+      plainText,
       createdAt,
     };
 
@@ -103,7 +103,7 @@ export class SearchService implements OnModuleInit {
       from: (query.page - 1) * query.limit,
       size: query.limit,
       query: {
-        multi_match: { query: needle, fields: ['content', 'username'] },
+        multi_match: { query: needle, fields: ['plainText', 'username'] },
       },
     });
 

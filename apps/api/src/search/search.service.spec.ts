@@ -39,9 +39,9 @@ describe('SearchService', () => {
 
     await service.onModuleInit();
 
-    expect(elasticsearch.indices.exists).toHaveBeenCalledWith({ index: 'comments' });
+    expect(elasticsearch.indices.exists).toHaveBeenCalledWith({ index: 'comments_v2' });
     expect(elasticsearch.indices.create).toHaveBeenCalledWith(
-      expect.objectContaining({ index: 'comments' }),
+      expect.objectContaining({ index: 'comments_v2' }),
     );
   });
 
@@ -67,13 +67,13 @@ describe('SearchService', () => {
     });
 
     expect(elasticsearch.index).toHaveBeenCalledWith({
-      index: 'comments',
+      index: 'comments_v2',
       id: 'c1',
       document: {
         id: 'c1',
         parentId: null,
         username: 'Ann',
-        content: 'hello',
+        plainText: 'hello',
         createdAt: '2026-01-01T00:00:00.000Z',
       },
       refresh: true,
@@ -144,11 +144,11 @@ describe('SearchService', () => {
 
     expect(elasticsearch.search).toHaveBeenCalledWith(
       expect.objectContaining({
-        index: 'comments',
+        index: 'comments_v2',
         from: 10,
         size: 10,
         query: {
-          multi_match: { query: 'hello', fields: ['content', 'username'] },
+          multi_match: { query: 'hello', fields: ['plainText', 'username'] },
         },
       }),
     );

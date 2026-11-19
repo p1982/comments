@@ -10,6 +10,6 @@ export interface CommentSearchDocument {
   id: string;
   parentId: string | null;
   username: string;
-  content: string;
+  plainText: string;
   createdAt: string;
 }
