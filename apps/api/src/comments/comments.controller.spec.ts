@@ -19,7 +19,13 @@ describe('CommentsController', () => {
     getComments: jest.fn(),
     getCommentsByRootId: jest.fn(),
   };
-  const controller = new CommentsController(commentsService as unknown as CommentsService);
+  const searchService = {
+    search: jest.fn(),
+  };
+  const controller = new CommentsController(
+    commentsService as unknown as CommentsService,
+    searchService as never,
+  );
   const body = {
     fullName: 'Ann',
     email: 'ann@example.com',
