@@ -47,6 +47,18 @@ const graphqlQueryExamples = {
       },
     },
   },
+  searchComments: {
+    summary: 'Search comments via Elasticsearch',
+    value: {
+      query: `query SearchComments($q: String!, $page: Float, $limit: Float) {
+  searchComments(q: $q, page: $page, limit: $limit) {
+    data { id text fullName email createdAt parentId }
+    total totalPages status message
+  }
+}`,
+      variables: { q: 'nestjs', page: 1, limit: 25 },
+    },
+  },
 };
 
 export const openApiExtraPaths = {
@@ -57,7 +69,7 @@ export const openApiExtraPaths = {
       description: [
         'Single HTTP entry for GraphQL. Playground is enabled outside production at `/graphql`.',
         '',
-        '**Queries:** `health`, `comments`, `commentChildren`',
+        '**Queries:** `health`, `comments`, `commentChildren`, `searchComments`',
         '**Mutations:** `createComment` (optional `access_token` cookie; captcha cookie required by business rules)',
         '**Uploads:** `image` / `textFile` via `graphql-upload` multipart',
         '**Subscriptions transport:** `graphql-ws` is enabled on the same GraphQL server',

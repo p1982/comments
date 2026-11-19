@@ -124,11 +124,27 @@ export class CommentsController {
 
   @Get(ENDPOINTS.SEARCH)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Search comments' })
+  @ApiOperation({
+    summary: 'Search comments',
+    description:
+      'Full-text search over comment content and author name via Elasticsearch. ' +
+      'Returns hydrated comments from Postgres in hit order. HTML tags are stripped for matching only.',
+  })
   @ApiQuery({
     name: 'q',
     required: true,
-    schema: { type: 'string', minLength: 1, maxLength: 100 },
+    description: 'Search query (1–100 characters)',
+    schema: { type: 'string', minLength: 1, maxLength: 100, example: 'nestjs' },
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    schema: { type: 'integer', minimum: 1, default: 1 },
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 25, default: 25 },
   })
   @ApiOkResponse({ type: CommentResponseDto, isArray: true })
   searchComments(
