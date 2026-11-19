@@ -15,7 +15,10 @@
     "imageLabel": "JPG, PNG or GIF image",
     "textFileLabel": "TXT file up to 100 KB",
     "nameRequired": "Name is required",
-    "messageRequired": "Message is required"
+    "messageRequired": "Message is required",
+    "searchLabel": "Search comments",
+    "search": "Search",
+    "searchClear": "Clear"
   },
   "Auth": {
     "signIn": "Sign in",

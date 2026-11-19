@@ -34,7 +34,10 @@ describe('CommentResolver', () => {
     getCommentsByRootId: jest.fn(),
     createComment: jest.fn(),
   };
-  const resolver = new CommentResolver(commentsService as never);
+  const searchService = {
+    search: jest.fn(),
+  };
+  const resolver = new CommentResolver(commentsService as never, searchService as never);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -82,6 +85,7 @@ describe('CommentResolver', () => {
         image: imageUpload,
       },
       { req: { cookies: { captcha: 'token' }, user: null } as never },
+      null,
     );
 
     expect(result).toBe(created);

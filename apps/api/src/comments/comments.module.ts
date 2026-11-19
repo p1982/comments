@@ -10,6 +10,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { AttachmentsEntity } from '@app/attachments/entity/attachments.entity';
 import { AttachmentsRepository } from '@app/attachments/repository/attachments.repository';
 import { AuthModule } from '@app/auth/auth.module';
+import { SearchModule } from '@app/search/search.module';
 import { UsersEntity } from '@app/users/entity/users.entity';
 import { UsersModule } from '@app/users/users.module';
 
@@ -89,6 +90,7 @@ const rabbitImports: DynamicModule[] = useRabbit
   imports: [
     AuthModule,
     UsersModule,
+    SearchModule,
     TypeOrmModule.forFeature([CommentsEntity, UsersEntity, AttachmentsEntity]),
     ...rabbitImports,
     CacheModule.register({

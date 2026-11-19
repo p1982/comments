@@ -5,6 +5,7 @@ import {
   type CommentsListQuery,
   type CommentsResult,
   type CommentsSchema,
+  type CommentsSearchQuery,
   type CreateCommentResponse,
 } from '@comments/shared';
 
@@ -46,6 +47,16 @@ class CommentsServices extends AbstractApiServices {
     if (image) body.append('image', image);
     if (textFile) body.append('textFile', textFile);
     return this.post(ENDPOINTS.COMMENTS, body);
+  }
+
+  searchComments(query: CommentsSearchQuery): Promise<AxiosResponse<CommentsResult>> {
+    return this.get(`${ENDPOINTS.COMMENTS}${ENDPOINTS.SEARCH}`, {
+      params: {
+        q: query.q,
+        page: query.page,
+        limit: query.limit,
+      },
+    });
   }
 }
 

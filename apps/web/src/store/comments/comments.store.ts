@@ -7,6 +7,7 @@ import type {
   CommentSortOrder,
   CommentsListQuery,
   CommentsSchema,
+  CommentsSearchQuery,
   GetCommentsQuery,
 } from '@comments/shared';
 import commentsService from '@/api/services/comments.service';
@@ -26,6 +27,7 @@ interface CommentsState {
   limit: number;
   sort: CommentSortField;
   order: CommentSortOrder;
+  searchQuery: string | null;
   total: number;
   totalPages: number;
   comment: CommentResponse | null;
@@ -39,6 +41,7 @@ interface CommentsState {
   openReplyForm: (parentId: string, rootId: string) => void;
   closeCommentForm: () => void;
   applyRemoteComment: (comment: CommentResponse) => void;
+  searchComments: (query: CommentsSearchQuery) => Promise<void>;
 }
 
 interface CommentTarget {
@@ -61,6 +64,7 @@ const useCommentsStore = create<CommentsState>()(
       limit: 25,
       sort: 'createdAt',
       order: 'desc',
+      searchQuery: null,
       commentTarget: null,
       fetchComments: async (query: GetCommentsQuery = {}) => {
         const state = get();
@@ -83,6 +87,7 @@ const useCommentsStore = create<CommentsState>()(
             limit: nextQuery.limit,
             sort: nextQuery.sort,
             order: nextQuery.order,
+            searchQuery: null,
             total: data.total ?? 0,
             totalPages: data.totalPages ?? 0,
           });
@@ -211,6 +216,27 @@ const useCommentsStore = create<CommentsState>()(
             },
           },
         });
+      },
+      searchComments: async (query: CommentsSearchQuery) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data } = await commentsService.searchComments(query);
+          const [comments, commentsIds] = reduceComments(data.data);
+          set({
+            comments,
+            commentsIds,
+            page: query.page,
+            limit: query.limit,
+            searchQuery: query.q,
+            total: data.total ?? 0,
+            totalPages: data.totalPages ?? 0,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to search comments';
+          set({ error: message });
+        } finally {
+          set({ isLoading: false });
+        }
       },
     }),
     {

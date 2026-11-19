@@ -7,6 +7,11 @@ describe('openapi extras', () => {
     expect(openApiExtraPaths['/graphql'].post.tags).toEqual(['graphql']);
     expect(openApiExtraPaths['/socket.io'].get.tags).toEqual(['websocket']);
     expect(openApiExtraPaths['/socket.io'].get.description).toContain(WS_COMMENT_CREATED);
+    expect(openApiExtraPaths['/graphql'].post.description).toContain('searchComments');
+    expect(
+      openApiExtraPaths['/graphql'].post.requestBody.content['application/json'].examples
+        .searchComments.value.variables,
+    ).toEqual({ q: 'nestjs', page: 1, limit: 25 });
   });
 
   it('merges extras into an existing OpenAPI document', () => {

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, IsNull, Repository, Not } from 'typeorm';
+import { EntityManager, In, IsNull, Repository, Not } from 'typeorm';
 
 import type { CommentsListQuery } from '@comments/shared';
 
@@ -56,6 +56,22 @@ export class CommentsRepository {
     return await this.commentsRepository.findOne({
       where: { id },
       relations: { user: true, attachments: true },
+    });
+  }
+
+  async findByIds(ids: string[]): Promise<CommentsEntity[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    this.logger.debug(`Finding comments by ids: ${ids.join(',')}`);
+    const comments = await this.commentsRepository.find({
+      where: { id: In(ids) },
+      relations: { user: true, attachments: true },
+    });
+    const byId = new Map(comments.map((comment) => [comment.id, comment]));
+    return ids.flatMap((id) => {
+      const comment = byId.get(id);
+      return comment ? [comment] : [];
     });
   }
 
