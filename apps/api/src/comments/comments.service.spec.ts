@@ -21,6 +21,7 @@ import type { EntityManager } from 'typeorm';
 import type { UsersEntity } from '@app/users/entity/users.entity';
 
 import { CommentsService } from './comments.service';
+import { COMMENTS_LIST_CACHE_VERSION_KEY } from './comments.constants';
 
 const captchaSecret = 'test-captcha-secret';
 const captcha = 'AB12C';
@@ -460,6 +461,8 @@ describe('CommentsService', () => {
       },
       manager,
     );
+    expect(cache.get).toHaveBeenCalledWith(COMMENTS_LIST_CACHE_VERSION_KEY);
+    expect(cache.set).toHaveBeenCalledWith(COMMENTS_LIST_CACHE_VERSION_KEY, 1);
     expect(commentQueueService.enqueue).not.toHaveBeenCalled();
   });
 

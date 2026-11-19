@@ -72,7 +72,7 @@ export const openApiExtraPaths = {
         '**Queries:** `health`, `comments`, `commentChildren`, `searchComments`',
         '**Mutations:** `createComment` (optional `access_token` cookie; captcha cookie required by business rules)',
         '**Uploads:** `image` / `textFile` via `graphql-upload` multipart',
-        '**Write path:** `createComment` commits comment + outbox in one TX; WS / cache / ES follow via the outbox publisher (async)',
+        '**Write path:** `createComment` commits comment + outbox in one TX and bumps list cache; WS / ES follow via the outbox publisher (async)',
         '**Subscriptions transport:** `graphql-ws` is enabled on the same GraphQL server',
       ].join('\n'),
       security: [{ [CookiesName.ACCESS_TOKEN]: [] }, { [CookiesName.CAPTCHA]: [] }],

@@ -66,7 +66,7 @@ export class CommentsController {
       'Creates a root comment (or a reply when `parentId` is set).',
       'Optional `access_token` cookie attaches the signed-in user; captcha cookie is required.',
       'Persists the comment (and optional text file) in one DB transaction and writes a `comment.created` outbox row.',
-      'HTTP returns as soon as the transaction commits; WebSocket broadcast, list-cache bump, and Elasticsearch index run asynchronously via the outbox publisher.',
+      'HTTP returns after the transaction commits and the list cache is invalidated; WebSocket broadcast and Elasticsearch index run asynchronously via the outbox publisher.',
       'Optional image: fitted in-request when `COMMENT_QUEUE_MODE=sync`, otherwise queued as `process-image`.',
       'Multipart fields: `image`, `textFile` (plus JSON/form fields from the body schema).',
     ].join(' '),

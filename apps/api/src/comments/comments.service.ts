@@ -245,6 +245,9 @@ export class CommentsService {
         this.logger.debug(`Queued process-image for ${response.id}`);
       }
 
+      // Invalidate list cache in-request so GET is not stale while outbox handles WS/ES.
+      await this.bumpCommentsListCache();
+
       return response;
     } catch (error) {
       if (error instanceof HttpException) {
@@ -253,6 +256,13 @@ export class CommentsService {
       this.logger.error(error);
       throw new InternalServerErrorException(ERROR_MESSAGES.internalServerError);
     }
+  }
+
+  private async bumpCommentsListCache(): Promise<void> {
+    const version = (await this.cache.get<number>(COMMENTS_LIST_CACHE_VERSION_KEY)) ?? 0;
+    const next = version + 1;
+    await this.cache.set(COMMENTS_LIST_CACHE_VERSION_KEY, next);
+    this.logger.debug(`comments list cache bumped to v${String(next)}`);
   }
 
   private async saveFittedImage(
