@@ -72,6 +72,7 @@ export const openApiExtraPaths = {
         '**Queries:** `health`, `comments`, `commentChildren`, `searchComments`',
         '**Mutations:** `createComment` (optional `access_token` cookie; captcha cookie required by business rules)',
         '**Uploads:** `image` / `textFile` via `graphql-upload` multipart',
+        '**Write path:** `createComment` commits comment + outbox in one TX; WS / cache / ES follow via the outbox publisher (async)',
         '**Subscriptions transport:** `graphql-ws` is enabled on the same GraphQL server',
       ].join('\n'),
       security: [{ [CookiesName.ACCESS_TOKEN]: [] }, { [CookiesName.CAPTCHA]: [] }],
@@ -150,7 +151,7 @@ export const openApiExtraPaths = {
         '**Server → client events**',
         `- \`${WS_COMMENT_CREATED}\` — payload matches REST comment response (new comment broadcast)`,
         '',
-        'No client → server comment commands; the gateway only broadcasts after create.',
+        'No client → server comment commands; the gateway broadcasts after the outbox publisher emits `comment.created` (shortly after HTTP/GraphQL create returns).',
       ].join('\n'),
       parameters: [
         {

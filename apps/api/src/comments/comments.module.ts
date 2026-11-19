@@ -13,6 +13,7 @@ import { AuthModule } from '@app/auth/auth.module';
 import { SearchModule } from '@app/search/search.module';
 import { UsersEntity } from '@app/users/entity/users.entity';
 import { UsersModule } from '@app/users/users.module';
+import { OutboxModule } from '@app/outbox/outbox.module';
 
 import { CommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
@@ -35,9 +36,7 @@ const queueMode = resolveCommentQueueMode(process.env['COMMENT_QUEUE_MODE']);
 const useRabbit = queueMode === 'rabbit';
 
 const syncQueue: CommentQueuePort = {
-  enqueue() {
-    // sync mode handles fit + emit inside CommentsService
-  },
+  enqueue: () => undefined,
 };
 
 const commentQueueProvider: Provider = {
@@ -90,6 +89,7 @@ const rabbitImports: DynamicModule[] = useRabbit
     AuthModule,
     UsersModule,
     SearchModule,
+    OutboxModule,
     TypeOrmModule.forFeature([CommentsEntity, UsersEntity, AttachmentsEntity]),
     ...rabbitImports,
     CacheModule.register({
