@@ -14,6 +14,12 @@ import { ERROR_MESSAGES } from './error-messages';
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
   catch(exception: unknown, host: ArgumentsHost): void {
+    // GraphQL / WS have no Express req/res; writing HTTP here masks the real error
+    // as "Cannot read properties of undefined (reading 'method')".
+    if (host.getType() !== 'http') {
+      throw exception;
+    }
+
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();

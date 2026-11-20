@@ -15,13 +15,24 @@ Load create + list against a running API. Install k6 separately (`brew install k
 # 1) API must answer health first
 curl -m 3 http://localhost:3001/api/v1/health
 
-# 2) default smoke: ~2 list/s + 1 create/s for 30s
+# 2) default smoke: REST ~2 list/s + 1 create/s for 30s
 npm run test:load
 
 LOAD_PROFILE=local npm run test:load
 LOAD_PROFILE=peak npm run test:load
 
+# GraphQL instead of REST (POST /graphql)
+LOAD_TRANSPORT=graphql npm run test:load
+
+# Split rate across REST + GraphQL
+LOAD_TRANSPORT=both npm run test:load
 ```
+
+| `LOAD_TRANSPORT` | What runs                                    |
+| ---------------- | -------------------------------------------- |
+| `rest` (default) | `GET/POST /api/v1/comments`                  |
+| `graphql`        | `POST /graphql` `comments` + `createComment` |
+| `both`           | half rate each transport (total ≈ profile)   |
 
 End of run prints a **LOAD BOARD** (count, speed req/s, success %) and writes `apps/load/results.json`.
 
@@ -39,7 +50,7 @@ If the API hangs after a heavy run: stop k6 (`Ctrl+C`), restart `npm run dev:api
 
 Healthy **smoke** on a laptop usually looks like:
 
-- `checks_succeeded` 100%, `errors` 0%, `create 201` / `list 200` all green
+- `checks_succeeded` 100%, `errors` 0%; REST `create 201` / `list 200`, GraphQL `200` + no `errors` + payload
 - create **med** ~10–30ms, list **med** single-digit–tens ms
 - create **p95** can still be hundreds of ms (or 1–2s) from a cold first write / GC; thresholds allow that
 
