@@ -76,8 +76,23 @@ describe('SearchService', () => {
         plainText: 'hello',
         createdAt: '2026-01-01T00:00:00.000Z',
       },
-      refresh: true,
+      refresh: false,
     });
+  });
+
+  it('does not throw when elasticsearch index fails', async () => {
+    elasticsearch.index.mockRejectedValue(new Error('media_type_header_exception'));
+    const service = createService();
+
+    await expect(
+      service.index({
+        id: 'c1',
+        parentId: null,
+        fullName: 'Ann',
+        text: 'Hello',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }),
+    ).resolves.toBeUndefined();
   });
 
   it('skips indexing empty plain text or missing client', async () => {

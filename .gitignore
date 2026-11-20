@@ -60,6 +60,9 @@ apps/e2e/test-results
 **/playwright-report
 **/test-results
 
+# k6 load summary
+apps/load/results.json
+
 # Env
 .env
 .env.local

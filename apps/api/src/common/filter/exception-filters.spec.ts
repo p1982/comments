@@ -17,6 +17,7 @@ const httpHost = (
   response: { status: jest.Mock; json: jest.Mock },
 ) =>
   ({
+    getType: () => 'http',
     switchToHttp: () => ({
       getRequest: () => request,
       getResponse: () => response,
@@ -76,6 +77,20 @@ describe('exception filters', () => {
     expect(JSON.stringify(productionError)).not.toContain('secret');
     expect(development({ message: 'formatted' }, 'not-an-error').message).toBe('formatted');
     expect(development({ message: 'formatted' }, new Error('secret')).message).toBe('secret');
+  });
+
+  it('rethrows for non-HTTP hosts so GraphQL can format the original error', () => {
+    const filter = new GlobalExceptionFilter();
+    const original = new Error('zod boom');
+    const host = {
+      getType: () => 'graphql',
+      switchToHttp: () => ({
+        getRequest: () => undefined,
+        getResponse: () => undefined,
+      }),
+    } as unknown as ArgumentsHost;
+
+    expect(() => filter.catch(original, host)).toThrow(original);
   });
 
   it('writes HTTP errors from a string, an object, an Error, and an unknown value', () => {

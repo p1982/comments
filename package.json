@@ -24,6 +24,7 @@
     "db:seed": "node scripts/seed.cjs",
     "prepare": "husky",
     "check:branch": "node scripts/check-branch-name.cjs",
+    "test:load": "k6 run apps/load/comments-load.js",
     "check": "npm run check:branch && npm run format:check && npm run lint && npm run typecheck && npm run test"
   },
   "private": true,
@@ -107,7 +108,7 @@
     "@apollo/server": "^5.0.0",
     "@apollo/server-plugin-landing-page-graphql-playground": "file:tools/apollo-playground-plugin",
     "@as-integrations/express5": "^1.1.2",
-    "@elastic/elasticsearch": "^9.5.1",
+    "@elastic/elasticsearch": "^8.15.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^7.0.2",
