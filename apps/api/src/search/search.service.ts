@@ -83,12 +83,18 @@ export class SearchService implements OnModuleInit {
       return;
     }
 
-    await this.elasticsearch.index({
-      index: COMMENTS_INDEX,
-      id,
-      document,
-      refresh: true,
-    });
+    try {
+      await this.elasticsearch.index({
+        index: COMMENTS_INDEX,
+        id,
+        document,
+        // false: do not block the write path / outbox on every create under load
+        refresh: false,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.warn(`Elasticsearch index skipped for ${id}: ${message}`);
+    }
   }
 
   async search(query: CommentsSearchQuery): Promise<CommentsResult> {

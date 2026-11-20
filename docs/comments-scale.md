@@ -168,7 +168,7 @@ Elasticsearch ◄── search hydrate by id ──► Postgres
 | Durable side-effect delivery | Todo    | `feature/comments-write-path`               |
 | Shared cache / WS scale-out  | Todo    | Redis (+ Socket.IO adapter)                 |
 | Object storage for files     | Todo    | Before multi-node / cloud-run               |
-| Measured proof               | Todo    | `test/comments-load` → `docs/load-report`   |
+| Measured proof               | Done    | `test/comments-load` → `docs/load-report`   |
 
 ---
 
