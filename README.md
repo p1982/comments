@@ -20,6 +20,9 @@ NX monorepo: **NestJS** API + **Next.js** web, TypeORM/PostgreSQL, MUI, react-ho
 
 Target schema for comments: `users`, `comments`, `attachments`, `outbox_events`.
 
+- Start snapshot (MySQL Workbench): [`docs/comments-schema.sql`](docs/comments-schema.sql)
+- Current schema vs migrations (MySQL Workbench): [`docs/comments-schema-current.sql`](docs/comments-schema-current.sql)
+
 ![Comments database schema](https://res.cloudinary.com/dkdsf8hw3/image/upload/v1794220496/comments_db_ddj6ct.png)
 
 ## Structure
