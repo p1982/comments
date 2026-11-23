@@ -33,10 +33,15 @@ describe('HealthService', () => {
     httpAdapterHost as unknown as HttpAdapterHost,
     schemaHost as unknown as GraphQLSchemaHost,
   );
+  const fetchMock = jest.fn();
 
   beforeEach(() => {
     dataSource.query.mockReset();
     httpServer.listeners.mockReset();
+    fetchMock.mockReset();
+    fetchMock.mockRejectedValue(new Error('offline'));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    global.fetch = fetchMock as any;
     httpAdapterHost.httpAdapter = { getHttpServer: jest.fn(() => httpServer) };
     Object.defineProperty(schemaHost, 'schema', {
       configurable: true,
@@ -79,7 +84,7 @@ describe('HealthService', () => {
     await expect(service.check()).resolves.toMatchObject({ status: 'error', graphql: 'down' });
   });
 
-  it('reports GraphQL down when the schema host is missing', async () => {
+  it('reports GraphQL down when the schema host is missing and HTTP probe fails', async () => {
     const withoutSchema = new HealthService(
       dataSource as unknown as DataSource,
       httpAdapterHost as unknown as HttpAdapterHost,
@@ -89,6 +94,25 @@ describe('HealthService', () => {
     await expect(withoutSchema.check()).resolves.toMatchObject({
       status: 'error',
       graphql: 'down',
+    });
+  });
+
+  it('reports GraphQL up via HTTP when the schema host is missing', async () => {
+    const withoutSchema = new HealthService(
+      dataSource as unknown as DataSource,
+      httpAdapterHost as unknown as HttpAdapterHost,
+      null,
+    );
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { health: 'API is running' } }),
+    });
+
+    await expect(withoutSchema.check()).resolves.toEqual({
+      status: 'ok',
+      database: 'up',
+      graphql: 'up',
+      websocket: 'up',
     });
   });
 
