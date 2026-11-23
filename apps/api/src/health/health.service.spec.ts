@@ -153,4 +153,35 @@ describe('HealthService', () => {
 
     await expect(service.check()).resolves.toMatchObject({ status: 'error', websocket: 'down' });
   });
+
+  it('reports GraphQL down when the HTTP probe returns a non-ok response', async () => {
+    const withoutSchema = new HealthService(
+      dataSource as unknown as DataSource,
+      httpAdapterHost as unknown as HttpAdapterHost,
+      null,
+    );
+    fetchMock.mockResolvedValue({ ok: false });
+
+    await expect(withoutSchema.check()).resolves.toMatchObject({
+      status: 'error',
+      graphql: 'down',
+    });
+  });
+
+  it('reports GraphQL down when the HTTP probe body contains errors', async () => {
+    const withoutSchema = new HealthService(
+      dataSource as unknown as DataSource,
+      httpAdapterHost as unknown as HttpAdapterHost,
+      null,
+    );
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ errors: [{ message: 'some error' }] }),
+    });
+
+    await expect(withoutSchema.check()).resolves.toMatchObject({
+      status: 'error',
+      graphql: 'down',
+    });
+  });
 });
