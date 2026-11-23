@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    "start": "nx serve api",
+    "start:web": "nx dev web",
     "dev": "nx run-many -t serve,dev -p api,web --parallel=2",
     "migration:generate": "node scripts/typeorm.cjs migration:generate apps/api/src/database/migrations/migration -d apps/api/src/database/data-source.ts",
     "migration:run": "node scripts/typeorm.cjs migration:run -d apps/api/src/database/data-source.ts",

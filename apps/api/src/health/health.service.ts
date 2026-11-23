@@ -49,16 +49,40 @@ export class HealthService {
   private async checkGraphql(): Promise<DependencyStatus> {
     try {
       const schema = this.schemaHost?.schema;
-      if (!schema) {
-        return 'down';
+      if (schema) {
+        const result = await graphql({
+          schema,
+          source: '{ health }',
+        });
+        const health: unknown = result.data?.['health'];
+        if (result.errors === undefined && health === 'API is running') {
+          return 'up';
+        }
       }
 
-      const result = await graphql({
-        schema,
-        source: '{ health }',
+      // Docker/webpack: GraphQLSchemaHost can be empty while /graphql already serves
+      return await this.probeGraphqlOverHttp();
+    } catch {
+      return 'down';
+    }
+  }
+
+  private async probeGraphqlOverHttp(): Promise<DependencyStatus> {
+    try {
+      const port = process.env['PORT'] ?? '3001';
+      const response = await fetch(`http://127.0.0.1:${port}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: '{ health }' }),
       });
-      const health: unknown = result.data?.['health'];
-      return result.errors === undefined && health === 'API is running' ? 'up' : 'down';
+      if (!response.ok) {
+        return 'down';
+      }
+      const body = (await response.json()) as {
+        data?: { health?: unknown };
+        errors?: unknown;
+      };
+      return body.errors === undefined && body.data?.health === 'API is running' ? 'up' : 'down';
     } catch {
       return 'down';
     }
