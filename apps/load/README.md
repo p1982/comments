@@ -1,63 +1,63 @@
-# Comments load tests (k6)
+# Навантажувальні тести коментарів (k6)
 
-Load create + list against a running API. Install k6 separately (`brew install k6`); it is not an npm package.
+Навантаження create + list проти запущеного API. k6 ставиться окремо (`brew install k6`) — це не npm-пакет.
 
-## Prerequisites
+## Передумови
 
-- API on `http://localhost:3001` (`npm run dev:api` or compose)
-- Postgres up
-- `CAPTCHA_SECRET` same as API `.env` (default `secret`)
-- Elasticsearch optional for create/list (outbox still tries to index if `ELASTICSEARCH_NODE` is set)
+- API на `http://localhost:3001` (`npm run dev:api` або compose)
+- Postgres піднятий
+- `CAPTCHA_SECRET` як у `.env` API (за замовчуванням `secret`)
+- Elasticsearch опційний для create/list (якщо заданий `ELASTICSEARCH_NODE`, outbox все одно пробує індексувати)
 
-## Run
+## Запуск
 
 ```bash
-# 1) API must answer health first
+# 1) API має відповісти на health
 curl -m 3 http://localhost:3001/api/v1/health
 
-# 2) default smoke: REST ~2 list/s + 1 create/s for 30s
+# 2) smoke за замовчуванням: REST ~2 list/s + 1 create/s, 30s
 npm run test:load
 
 LOAD_PROFILE=local npm run test:load
 LOAD_PROFILE=peak npm run test:load
 
-# GraphQL instead of REST (POST /graphql)
+# GraphQL замість REST (POST /graphql)
 LOAD_TRANSPORT=graphql npm run test:load
 
-# Split rate across REST + GraphQL
+# Половина REST + половина GraphQL
 LOAD_TRANSPORT=both npm run test:load
 ```
 
-| `LOAD_TRANSPORT` | What runs                                    |
-| ---------------- | -------------------------------------------- |
-| `rest` (default) | `GET/POST /api/v1/comments`                  |
-| `graphql`        | `POST /graphql` `comments` + `createComment` |
-| `both`           | half rate each transport (total ≈ profile)   |
+| `LOAD_TRANSPORT` | Що ганяється                                      |
+| ---------------- | ------------------------------------------------- |
+| `rest` (default) | `GET/POST /api/v1/comments`                       |
+| `graphql`        | `POST /graphql` — `comments` + `createComment`    |
+| `both`           | половина rate на кожен транспорт (сума ≈ профіль) |
 
-End of run prints a **LOAD BOARD** (count, speed req/s, success %) and writes `apps/load/results.json`.
+В кінці — **LOAD BOARD** (count, speed req/s, success %) і файл `apps/load/results.json`.
 
-If the API hangs after a heavy run: stop k6 (`Ctrl+C`), restart `npm run dev:api`, wait for health 200, then smoke again.
+Якщо API «завис» після важкого прогону: зупини k6 (`Ctrl+C`), перезапусти `npm run dev:api`, дочекайся health 200, знову smoke.
 
-## Profiles
+## Профілі
 
-| `LOAD_PROFILE`    | list/s | create/s | duration |
-| ----------------- | ------ | -------- | -------- |
-| `smoke` (default) | 2      | 1        | 30s      |
-| `local`           | 5      | 2        | 1m       |
-| `peak`            | 20     | 10       | 2m       |
+| `LOAD_PROFILE`    | list/s | create/s | тривалість |
+| ----------------- | ------ | -------- | ---------- |
+| `smoke` (default) | 2      | 1        | 30s        |
+| `local`           | 5      | 2        | 1m         |
+| `peak`            | 20     | 10       | 2m         |
 
-## How to read results
+## Як читати результати
 
-Healthy **smoke** on a laptop usually looks like:
+Здоровий **smoke** на ноутбуці:
 
-- `checks_succeeded` 100%, `errors` 0%; REST `create 201` / `list 200`, GraphQL `200` + no `errors` + payload
-- create **med** ~10–30ms, list **med** single-digit–tens ms
-- create **p95** can still be hundreds of ms (or 1–2s) from a cold first write / GC; thresholds allow that
+- `checks_succeeded` 100%, `errors` 0%; REST `create 201` / `list 200`, GraphQL `200` без `errors` + payload
+- create **med** ~10–30 ms, list **med** одиниці–десятки ms
+- create **p95** інколи сотні ms (або 1–2 s) через холодний перший write / GC — пороги це допускають
 
-Failed **peak** on a laptop typically shows:
+Провальний **peak** на ноутбуці:
 
-- many `request timeout` once the API event loop / DB / ES outbox work backs up
-- `create 201` near 0% while `list 200` stays partially OK until saturation
-- successful responses can still be fast; p95 is pulled up by timeouts
+- багато `request timeout`, коли event loop / DB / ES outbox забиваються
+- `create 201` майже 0%, list тримається частково до насичення
+- успішні відповіді можуть лишатись швидкими; p95 тягнуть таймаути
 
-Useful for `docs/load-report`: bottleneck is often **write side effects** (outbox → ES) and **single-process Nest**, not the list query itself when cache hits.
+Корисно для `docs/load-report`: вузьке місце часто **побічні ефекти запису** (outbox → ES) і **один процес Nest**, а не сам list при cache hit.
