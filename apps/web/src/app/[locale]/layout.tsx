@@ -1,9 +1,11 @@
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
-import { getMessages, setRequestLocale } from 'next-intl/server';
+import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import type { ReactNode } from 'react';
-import { AppProviders } from '../../components/providers/AppProviders';
-import { routing } from '../../i18n/routing';
+import { Suspense, type ReactNode } from 'react';
+
+import Header from '@/components/Header/Header';
+import { ApolloWrapper, AppProviders } from '@/components/providers';
+import { routing } from '@/i18n/routing';
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -22,15 +24,21 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  setRequestLocale(locale);
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
-      <body>
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <AppProviders>{children}</AppProviders>
-        </NextIntlClientProvider>
+    <html lang={locale} suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <ApolloWrapper>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <AppProviders>
+              <Suspense fallback={null}>
+                <Header />
+              </Suspense>
+              {children}
+            </AppProviders>
+          </NextIntlClientProvider>
+        </ApolloWrapper>
       </body>
     </html>
   );

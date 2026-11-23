@@ -1,7 +1,9 @@
 # shared
 
-This library was generated with [Nx](https://nx.dev).
+Спільна бібліотека монорепозиторію Comments (схеми Zod, DTO, утиліти). Згенерована через [Nx](https://nx.dev).
 
-## Building
+## Збірка
 
-Run `nx build shared` to build the library.
+```bash
+nx build shared
+```

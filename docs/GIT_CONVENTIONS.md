@@ -1,34 +1,35 @@
-# Git conventions
+# Git-конвенції
 
-## Branch names
+## Імена гілок
 
-Protected / long-lived:
+Довгоживучі / захищені:
 
 - `main` | `master` | `develop`
 
-Feature branches:
+Feature-гілки:
 
 ```text
 <type>/<description>
 <type>/<ticket>-<description>
 ```
 
-**Types:** `feature` | `fix` | `hotfix` | `release` | `chore` | `docs` | `refactor` | `test` | `ci` | `perf`
+**Типи:** `feature` | `fix` | `hotfix` | `release` | `chore` | `docs` | `refactor` | `test` | `ci` | `perf`
 
-**Rules:** lowercase, kebab-case segments, `/` only after type.
+**Правила:** lowercase, kebab-case сегменти, `/` лише після типу.
 
-Examples:
+Приклади:
 
 ```text
 feature/add-comments-api
 fix/COM-12-cors-origin
 chore/update-eslint
 docs/git-conventions
+test/comments-load
 ```
 
-Invalid: `Feature/Foo`, `my-branch`, `feature_add_api`
+Невірно: `Feature/Foo`, `my-branch`, `feature_add_api`
 
-## Commit messages (Conventional Commits)
+## Повідомлення комітів (Conventional Commits)
 
 ```text
 <type>(optional-scope): <subject>
@@ -38,9 +39,9 @@ Invalid: `Feature/Foo`, `my-branch`, `feature_add_api`
 [optional footer]
 ```
 
-**Types:** `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
+**Типи:** `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
 
-Examples:
+Приклади:
 
 ```text
 feat(api): add health endpoint versioning
@@ -49,21 +50,24 @@ chore: configure husky and commitlint
 docs: describe git branch rules
 ```
 
-Subject: imperative mood, no period at the end, max 100 chars.
+Subject: наказовий спосіб, без крапки в кінці, максимум 100 символів.
 
 ## Hooks (Husky)
 
-| Hook         | Checks                                         |
-| ------------ | ---------------------------------------------- |
-| `pre-commit` | branch name, lint-staged (ESLint + Prettier)   |
-| `commit-msg` | Conventional Commits via commitlint            |
-| `pre-push`   | branch name + format + lint + typecheck + test |
+| Hook         | Перевірки                                   |
+| ------------ | ------------------------------------------- |
+| `pre-commit` | ім’я гілки, lint-staged (ESLint + Prettier) |
+| `commit-msg` | Conventional Commits через commitlint       |
+| `pre-push`   | гілка + format + lint + typecheck + test    |
 
-Manual checks:
+CI (`.github/workflows/ci.yml`) повторює ті самі перевірки, що `pre-push`, плюс `npm run test:api` (сервіс Postgres) і `npm run build`.
+
+Вручну:
 
 ```bash
 npm run check:branch
 npm run check
+npm run test:api
 ```
 
-After `npm install`, Husky hooks are installed via the `prepare` script.
+Після `npm install` Husky ставиться скриптом `prepare`.

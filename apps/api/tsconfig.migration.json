@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "bundler",
+    "target": "es2021",
+    "rootDir": "./src",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": false,
+    "paths": {
+      "@app/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "ts-node": {
+    "transpileOnly": true,
+    "compilerOptions": {
+      "module": "commonjs",
+      "moduleResolution": "bundler",
+      "verbatimModuleSyntax": false
+    }
+  }
+}

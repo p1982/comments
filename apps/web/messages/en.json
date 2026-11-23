@@ -3,9 +3,34 @@
     "title": "Comments",
     "subtitle": "NX monorepo with Nest, Next, MUI and TypeORM",
     "nameLabel": "Name",
+    "emailLabel": "Email",
+    "homepageLabel": "Homepage",
+    "textLabel": "Text",
+    "dateLabel": "Date",
     "messageLabel": "Message",
     "submit": "Submit",
+    "preview": "Preview",
+    "cancel": "Cancel",
+    "captchaLabel": "Code from the image",
+    "imageLabel": "JPG, PNG or GIF image",
+    "textFileLabel": "TXT file up to 100 KB",
     "nameRequired": "Name is required",
-    "messageRequired": "Message is required"
+    "messageRequired": "Message is required",
+    "searchLabel": "Search comments",
+    "search": "Search",
+    "searchClear": "Clear"
+  },
+  "Auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full name",
+    "homepage": "Homepage",
+    "signedIn": "Signed in",
+    "error": "Sign-in failed",
+    "signUpError": "Sign-up failed",
+    "haveAccount": "Already have an account?",
+    "noAccount": "No account yet?"
   }
 }

@@ -9,3 +9,6 @@ package-lock.json
 **/tmp
 .env
 .env.*
+
+# NestJS GraphQL writes this on API start
+apps/api/schema.gql

@@ -1,0 +1,50 @@
+import { HttpException } from '@nestjs/common';
+import type { ConfigService } from '@nestjs/config';
+import { GraphQLError } from 'graphql';
+
+import { ERROR_CODES, ERROR_MESSAGES } from '../common/filter/error-messages';
+import { buildGraphQLOptions } from './graphql.options';
+
+describe('buildGraphQLOptions', () => {
+  it('wires formatError with extensions.code for HttpException', () => {
+    const options = buildGraphQLOptions({
+      get: () => 'development',
+    } as unknown as ConfigService);
+
+    const formatted = options.formatError?.(
+      { message: 'fallback' },
+      new GraphQLError('bad', {
+        originalError: new HttpException('Invalid captcha', 400),
+      }),
+    );
+
+    expect(formatted).toMatchObject({
+      message: 'Invalid captcha',
+      extensions: {
+        code: ERROR_CODES.BAD_REQUEST,
+        statusCode: 400,
+      },
+    });
+    expect(formatted).not.toHaveProperty('extensions.stacktrace');
+    expect(formatted).not.toHaveProperty('extensions.exception');
+  });
+
+  it('hides unexpected errors in production through the wired formatError', () => {
+    const options = buildGraphQLOptions({
+      get: (key: string) => (key === 'NODE_ENV' ? 'production' : undefined),
+    } as unknown as ConfigService);
+
+    const formatted = options.formatError?.(
+      { message: 'formatted' },
+      new Error('secret db password'),
+    );
+
+    expect(formatted).toEqual({
+      message: ERROR_MESSAGES.internalServerError,
+      extensions: {
+        code: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      },
+    });
+    expect(JSON.stringify(formatted)).not.toContain('secret');
+  });
+});

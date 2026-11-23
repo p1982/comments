@@ -2,7 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "types": ["node"],
+    "types": ["node", "multer"],
+    "paths": {
+      "@app/*": ["./src/*"]
+    },
     "rootDir": "src",
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
     "experimentalDecorators": true,
@@ -17,7 +20,9 @@
     "jest.config.ts",
     "jest.config.cts",
     "src/**/*.spec.ts",
+    "src/**/*.e2e-spec.ts",
     "src/**/*.test.ts",
+    "src/test/**",
     "eslint.config.js",
     "eslint.config.cjs",
     "eslint.config.mjs"

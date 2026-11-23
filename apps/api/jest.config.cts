@@ -14,5 +14,32 @@ module.exports = {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
+  moduleNameMapper: {
+    '^@app/(.*)$': '<rootDir>/src/$1',
+    '^@nestjs/event-emitter$': '<rootDir>/src/test/nestjs-event-emitter.mock.ts',
+    '^@nestjs/cache-manager$': '<rootDir>/src/test/nestjs-cache-manager.mock.ts',
+  },
+  coverageProvider: 'v8',
+  collectCoverage: true,
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.spec.ts',
+    '!src/**/*.e2e-spec.ts',
+    '!src/test/**',
+    '!src/**/*.module.ts',
+    '!src/main.ts',
+    '!src/database/migrations/**',
+    '!src/database/seeds/**',
+    '!src/comments/graphql/*.type.ts',
+    '!src/comments/graphql/*.input.ts',
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 89,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+  },
   coverageDirectory: 'test-output/jest/coverage',
 };

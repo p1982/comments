@@ -1,5 +1,6 @@
 import nx from '@nx/eslint-plugin';
 import eslintConfigPrettier from 'eslint-config-prettier';
+import importPlugin from 'eslint-plugin-import';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -26,11 +27,35 @@ export default tseslint.config(
     extends: [...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: [
+            'apps/web/src/api/axios/*.spec.ts',
+            'apps/web/src/api/services/*.spec.ts',
+            'apps/web/src/config/*.spec.ts',
+          ],
+          defaultProject: 'apps/web/tsconfig.spec.json',
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    plugins: {
+      import: importPlugin,
+    },
     rules: {
+      'import/order': [
+        'error',
+        {
+          groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index']],
+          pathGroups: [
+            { pattern: '@comments/**', group: 'internal', position: 'before' },
+            { pattern: '@app/**', group: 'internal', position: 'before' },
+            { pattern: '@/**', group: 'internal' },
+          ],
+          pathGroupsExcludedImportTypes: ['builtin'],
+          'newlines-between': 'always',
+          distinctGroup: false,
+        },
+      ],
       '@nx/enforce-module-boundaries': [
         'error',
         {

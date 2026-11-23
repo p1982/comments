@@ -3,9 +3,34 @@
     "title": "Коментарі",
     "subtitle": "NX monorepo з Nest, Next, MUI та TypeORM",
     "nameLabel": "Імʼя",
+    "emailLabel": "Email",
+    "homepageLabel": "Домашня сторінка",
+    "textLabel": "Текст",
+    "dateLabel": "Дата",
     "messageLabel": "Повідомлення",
     "submit": "Надіслати",
+    "preview": "Перегляд",
+    "cancel": "Скасувати",
+    "captchaLabel": "Код з картинки",
+    "imageLabel": "Картинка JPG, PNG або GIF",
+    "textFileLabel": "Текстовий файл TXT до 100 КБ",
     "nameRequired": "Імʼя обовʼязкове",
-    "messageRequired": "Повідомлення обовʼязкове"
+    "messageRequired": "Повідомлення обовʼязкове",
+    "searchLabel": "Пошук коментарів",
+    "search": "Шукати",
+    "searchClear": "Очистити"
+  },
+  "Auth": {
+    "signIn": "Увійти",
+    "signUp": "Реєстрація",
+    "email": "Email",
+    "password": "Пароль",
+    "fullName": "Повне імʼя",
+    "homepage": "Домашня сторінка",
+    "signedIn": "Ви увійшли",
+    "error": "Не вдалося увійти",
+    "signUpError": "Не вдалося зареєструватися",
+    "haveAccount": "Вже є акаунт?",
+    "noAccount": "Ще немає акаунта?"
   }
 }
