@@ -1,20 +1,20 @@
-# Browser e2e (`test/comment-e2e`)
+# Браузерні e2e (`test/comment-e2e`)
 
-Playwright covers: form, preview, list, sort, pagination, file upload.
+Playwright покриває: форму, попередній перегляд, список, сортування, пагінацію, завантаження файлу.
 
-## Prerequisites
+## Передумови
 
-- API on `http://localhost:3001` with Postgres migrated/synced
-- Web on `http://localhost:3000` (Playwright can start `next dev` automatically)
+- API на `http://localhost:3001` з Postgres (міграції або `DB_SYNC=true`)
+- Web на `http://localhost:3000` (Playwright може сам підняти `next dev`)
 
 ```bash
 docker compose up -d postgres rabbitmq elasticsearch api
-# ensure DB_SYNC=true for local compose, or run migrations
+# для локального compose зручно DB_SYNC=true, або npm run migration:run
 npm run test:e2e
 ```
 
-## Notes
+## Нотатки
 
-- API HTTP e2e already lives in `apps/api/src/comments/comments.e2e-spec.ts` (`npm run test:api`).
-- This package is **browser** e2e only; do not duplicate API coverage here.
-- Captcha is solved by fetching `/api/v1/captcha` and parsing the SVG code.
+- HTTP e2e API — у `apps/api/src/comments/comments.e2e-spec.ts` (`npm run test:api`).
+- Цей пакет лише **браузерний** e2e; не дублюй тут API-покриття.
+- Капча: запит `/api/v1/captcha` і розбір коду з SVG.
