@@ -27,6 +27,8 @@
     "prepare": "husky",
     "check:branch": "node scripts/check-branch-name.cjs",
     "test:load": "k6 run apps/load/comments-load.js",
+    "back": "nx serve api",
+    "front": "nx dev web",
     "check": "npm run check:branch && npm run format:check && npm run lint && npm run typecheck && npm run test"
   },
   "private": true,
