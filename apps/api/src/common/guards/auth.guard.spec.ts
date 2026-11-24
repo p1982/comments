@@ -14,7 +14,7 @@ import { AuthGuard } from './auth.guard';
 
 describe('AuthGuard', () => {
   const tokenService = {
-    decodeToken: jest.fn(),
+    verifyToken: jest.fn(),
   };
   const usersRepository = {
     findById: jest.fn(),
@@ -46,28 +46,53 @@ describe('AuthGuard', () => {
     'allows a request without an access token',
     async (cookies) => {
       await expect(guard.canActivate(contextFor(cookies))).resolves.toBe(true);
-      expect(tokenService.decodeToken).not.toHaveBeenCalled();
+      expect(tokenService.verifyToken).not.toHaveBeenCalled();
       expect(usersRepository.findById).not.toHaveBeenCalled();
     },
   );
 
-  it('attaches the user from a valid access cookie', async () => {
-    const user = { id: 'user-1' } as UsersEntity;
-    tokenService.decodeToken.mockReturnValue({ id: 'user-1', email: 'a@b.c' });
+  it('attaches the user from a verified access cookie', async () => {
+    const user = { id: 'user-1', deletedAt: null } as UsersEntity;
+    tokenService.verifyToken.mockResolvedValue({ id: 'user-1', email: 'a@b.c', type: 'access' });
     usersRepository.findById.mockResolvedValue(user);
     const context = contextFor({ access_token: 'token' });
     const request = context.switchToHttp().getRequest<{ user?: UsersEntity }>();
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(tokenService.decodeToken).toHaveBeenCalledWith('token');
+    expect(tokenService.verifyToken).toHaveBeenCalledWith('token');
     expect(usersRepository.findById).toHaveBeenCalledWith('user-1');
     expect(request.user).toBe(user);
   });
 
-  it('rejects an access cookie whose user does not exist', async () => {
-    tokenService.decodeToken.mockReturnValue({ id: 'missing', email: 'a@b.c' });
+  it('rejects a forged or expired access token', async () => {
+    tokenService.verifyToken.mockRejectedValue(
+      new UnauthorizedException(ERROR_MESSAGES.unauthorized),
+    );
+
+    await expect(guard.canActivate(contextFor({ access_token: 'forged' }))).rejects.toThrow(
+      new UnauthorizedException(ERROR_MESSAGES.unauthorized),
+    );
+    expect(usersRepository.findById).not.toHaveBeenCalled();
+  });
+
+  it('rejects a refresh token presented as an access cookie', async () => {
+    tokenService.verifyToken.mockResolvedValue({ id: 'user-1', email: 'a@b.c', type: 'refresh' });
+
+    await expect(guard.canActivate(contextFor({ access_token: 'refresh-token' }))).rejects.toThrow(
+      new UnauthorizedException(ERROR_MESSAGES.unauthorized),
+    );
+    expect(usersRepository.findById).not.toHaveBeenCalled();
+  });
+
+  it('rejects an access cookie whose user does not exist or is soft-deleted', async () => {
+    tokenService.verifyToken.mockResolvedValue({ id: 'missing', email: 'a@b.c', type: 'access' });
     usersRepository.findById.mockResolvedValue(null);
 
+    await expect(guard.canActivate(contextFor({ access_token: 'token' }))).rejects.toThrow(
+      new UnauthorizedException(ERROR_MESSAGES.userNotFound),
+    );
+
+    usersRepository.findById.mockResolvedValue({ id: 'deleted', deletedAt: new Date() });
     await expect(guard.canActivate(contextFor({ access_token: 'token' }))).rejects.toThrow(
       new UnauthorizedException(ERROR_MESSAGES.userNotFound),
     );
@@ -77,8 +102,8 @@ describe('AuthGuard', () => {
     const request: { cookies?: { access_token?: string }; user?: UsersEntity } = {
       cookies: { access_token: 'token' },
     };
-    const user = { id: 'user-1' } as UsersEntity;
-    tokenService.decodeToken.mockReturnValue({ id: 'user-1', email: 'a@b.c' });
+    const user = { id: 'user-1', deletedAt: null } as UsersEntity;
+    tokenService.verifyToken.mockResolvedValue({ id: 'user-1', email: 'a@b.c', type: 'access' });
     usersRepository.findById.mockResolvedValue(user);
     const create = jest.spyOn(GqlExecutionContext, 'create').mockReturnValue({
       getContext: () => ({ req: request }),

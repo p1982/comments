@@ -46,6 +46,7 @@ import {
 } from '@comments/shared';
 import { ZodValidationPipe } from '@app/common/pipes/validation.pipe';
 import { User } from '@app/common/pipes/user.pipe';
+import { buildBaseCookieOptions } from '@app/common/cookies/cookie-options';
 import { AuthGuard, type RequestWithUser } from '@app/common/guards/auth.guard';
 import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 import type { UsersEntity } from '@app/users/entity/users.entity';
@@ -91,12 +92,20 @@ export class CommentsController {
       'Comment row as stored. Side effects (WS / cache / search) may still be in flight for ~1s.',
   })
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'image', maxCount: 1 },
-      { name: 'textFile', maxCount: 1 },
-    ]),
+    FileFieldsInterceptor(
+      [
+        { name: 'image', maxCount: 1 },
+        { name: 'textFile', maxCount: 1 },
+      ],
+      {
+        limits: {
+          fileSize: 5 * 1024 * 1024,
+          files: 2,
+        },
+      },
+    ),
   )
-  createComment(
+  async createComment(
     @User() user: UsersEntity | null,
     @Req() request: RequestWithUser,
     @Body(new ZodValidationPipe(commentsSchema)) body: CommentsSchema,
@@ -105,14 +114,17 @@ export class CommentsController {
       image?: Express.Multer.File[];
       textFile?: Express.Multer.File[];
     },
+    @Res({ passthrough: true }) response?: Response,
   ): Promise<CommentResponseDto> {
-    return this.commentsService.createComment(
+    const created = await this.commentsService.createComment(
       body,
       request.cookies?.captcha ?? null,
       user,
       files?.image?.[0],
       files?.textFile?.[0],
     );
+    response?.clearCookie(CookiesName.CAPTCHA, buildBaseCookieOptions(undefined, request));
+    return created;
   }
 
   @Get()
@@ -209,7 +221,7 @@ export class CommentsController {
     let voterKey = resolveVoterKey(user, request.cookies?.voter_id);
     if (!voterKey) {
       const guestId = crypto.randomUUID();
-      response.cookie(CookiesName.VOTER_ID, guestId, buildVoterCookieOptions());
+      response.cookie(CookiesName.VOTER_ID, guestId, buildVoterCookieOptions(undefined, request));
       voterKey = `guest:${guestId}`;
     }
 
