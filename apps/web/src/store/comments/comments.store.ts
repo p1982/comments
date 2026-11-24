@@ -70,6 +70,28 @@ interface CommentTarget {
 }
 
 const IMAGE_SYNC_DELAYS_MS = [1000, 2500] as const;
+const LIVE_ATTACHMENT_GRACE_MS = 10_000;
+const recentRemoteAttachmentAt = new Map<string, number>();
+
+export const resetRecentRemoteAttachments = (): void => {
+  recentRemoteAttachmentAt.clear();
+};
+
+const markRecentRemoteAttachment = (commentId: string): void => {
+  recentRemoteAttachmentAt.set(commentId, Date.now());
+};
+
+const isRecentRemoteAttachment = (commentId: string): boolean => {
+  const seenAt = recentRemoteAttachmentAt.get(commentId);
+  if (seenAt === undefined) {
+    return false;
+  }
+  if (Date.now() - seenAt > LIVE_ATTACHMENT_GRACE_MS) {
+    recentRemoteAttachmentAt.delete(commentId);
+    return false;
+  }
+  return true;
+};
 
 const mergeAttachments = (
   existing: CommentAttachments[] | undefined,
@@ -124,7 +146,10 @@ const mergeCommentsMap = (
     return incoming;
   }
   return Object.fromEntries(
-    Object.entries(incoming).map(([id, comment]) => [id, mergeComment(existing[id], comment)]),
+    Object.entries(incoming).map(([id, comment]) => [
+      id,
+      isRecentRemoteAttachment(id) ? mergeComment(existing[id], comment) : comment,
+    ]),
   );
 };
 
@@ -409,6 +434,9 @@ const useCommentsStore = create<CommentsState>()(
         set({ showBookmarksOnly: show });
       },
       applyRemoteComment: (comment: CommentResponse) => {
+        if (comment.attachments.length > 0) {
+          markRecentRemoteAttachment(comment.id);
+        }
         const state = get();
         const existingBookmark = state.bookmarkedComments[comment.id];
         const bookmarkPatch = existingBookmark
@@ -688,17 +716,25 @@ const useCommentsStore = create<CommentsState>()(
     }),
     {
       name: 'comments-store',
+      version: 2,
+      migrate: (persistedState) => {
+        if (!persistedState || typeof persistedState !== 'object') {
+          return {};
+        }
+        const record = persistedState as Partial<CommentsState>;
+        return {
+          ...(record.limit !== undefined ? { limit: record.limit } : {}),
+          ...(record.sort !== undefined ? { sort: record.sort } : {}),
+          ...(record.order !== undefined ? { order: record.order } : {}),
+          ...(record.bookmarkedComments !== undefined
+            ? { bookmarkedComments: record.bookmarkedComments }
+            : {}),
+        };
+      },
       partialize: (state) => ({
-        comments: state.comments,
-        commentsIds: state.commentsIds,
-        page: state.page,
         limit: state.limit,
         sort: state.sort,
         order: state.order,
-        total: state.total,
-        totalPages: state.totalPages,
-        comment: state.comment,
-        childrenComments: state.childrenComments,
         bookmarkedComments: state.bookmarkedComments,
       }),
     },

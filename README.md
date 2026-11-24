@@ -17,7 +17,8 @@ SPA «Коментарі»: користувачі залишають повід
 9. [CI](#ci)
 10. [Скрипти](#скрипти)
 11. [Документація](#документація)
-12. [Покрокова перевірка всіх сценаріїв (чекліст + HTML-приклади)](#покрокова-перевірка-всіх-сценаріїв-чекліст--html-приклади)
+12. [GraphQL-запити (Playground та curl)](#graphql-запити-playground-та-curl)
+13. [Покрокова перевірка всіх сценаріїв (чекліст + HTML-приклади)](#покрокова-перевірка-всіх-сценаріїв-чекліст--html-приклади)
 
 ## Що вміє продукт
 
@@ -393,7 +394,8 @@ npm run check / check:branch
 
 ## Нотатки
 
-- Env: `.env.example` (`PORT` / `API_PORT`, `CAPTCHA_SECRET`, `JWT_SECRET`, `COMMENT_QUEUE_MODE`, `ELASTICSEARCH_NODE`).
+- Env: `.env.example` (`PORT` / `API_PORT`, `CAPTCHA_SECRET`, `JWT_SECRET`, `COMMENT_QUEUE_MODE`, `ELASTICSEARCH_NODE`, `GRAPHQL_PLAYGROUND`).
+- Apollo Playground і schema introspection увімкнені за замовчуванням (`settings['request.credentials'] = 'include'`); щоб вимкнути їх у production, задайте `GRAPHQL_PLAYGROUND=false`.
 - Порт API: `API_PORT` → `PORT` → `3001` (у Docker використовується `PORT=3001`, у `npm run dev:api` — `API_PORT=4000`).
 - URL API та GraphQL для web: `NEXT_PUBLIC_API_URL` або `${API_BASE_URL}/api/v${API_VERSION}` + автоматичний `NEXT_PUBLIC_GRAPHQL_URL` у `apps/web/next.config.js` (`getApiUrl()` з `@comments/shared`).
 
@@ -406,6 +408,156 @@ npm run check / check:branch
 | `sync`   | Ресайз і збереження зображення виконуються синхронно всередині транзакції `POST /comments` до повернення `201`                                        | Детерміновані тести або мінімальний запуск без черг       |
 | `memory` | Вбудована in-process FIFO-черга у памʼяті Node.js; `POST /comments` відповідає одразу, а воркер у фоні зберігає картинку, оновлює кеш і шле WS-апдейт | Локальна розробка без піднятого RabbitMQ (`.env.example`) |
 | `rabbit` | Durable-черга в RabbitMQ (`RABBITMQ_URL`, `COMMENT_QUEUE_NAME`); фоновий консьюмер обробляє картинку, інвалідує кеш і шле WS-апдейт                   | Docker (`docker-compose.yml`) і продакшен-розгортання     |
+
+## GraphQL-запити (Playground та curl)
+
+GraphQL API доступний на `/graphql`:
+
+- Docker: `http://localhost:3001/graphql`
+- Локально (`npm run dev:api`): `http://localhost:4000/graphql`
+- Production: `<API_URL>/graphql` (Apollo Playground увімкнений за замовчуванням із `'request.credentials': 'include'`; вимикається через `GRAPHQL_PLAYGROUND=false`)
+
+У Playground вставляйте **чистий GraphQL** (без JS-обгорток) і тисніть **▶ (Play)**.
+
+### 1. Health check (`health`)
+
+```graphql
+query {
+  health
+}
+```
+
+### 2. Список кореневих коментарів (`comments`)
+
+```graphql
+query {
+  comments(input: { page: 1, limit: 5, sort: "createdAt", order: "desc" }) {
+    total
+    totalPages
+    status
+    data {
+      id
+      fullName
+      email
+      homepage
+      text
+      createdAt
+      repliesCount
+      votesScore
+      userVote
+      attachments {
+        id
+        fileName
+        fileType
+        mimeType
+        url
+      }
+    }
+  }
+}
+```
+
+### 3. Вкладені відповіді за коренем (`commentChildren`)
+
+```graphql
+query {
+  commentChildren(rootId: "<ROOT_COMMENT_UUID>") {
+    status
+    data {
+      id
+      parentId
+      fullName
+      email
+      text
+      createdAt
+      votesScore
+      userVote
+      attachments {
+        id
+        fileName
+        fileType
+        url
+      }
+    }
+  }
+}
+```
+
+### 4. Пошук (`searchComments`)
+
+```graphql
+query {
+  searchComments(q: "hello", page: 1, limit: 5) {
+    total
+    totalPages
+    data {
+      id
+      parentId
+      fullName
+      text
+      createdAt
+      votesScore
+    }
+  }
+}
+```
+
+### 5. Створення коментаря або відповіді (`createComment`)
+
+Перед виконанням мутації відкрийте `GET <API_URL>/api/v1/captcha` у сусідній вкладці (встановиться `httpOnly` cookie `captcha` і відобразиться код із картинки), потім підставте код у `captcha` (для відповіді додайте `parentId: "<PARENT_UUID>"`):
+
+```graphql
+mutation {
+  createComment(
+    input: {
+      fullName: "DemoUser1"
+      email: "demo@example.com"
+      homepage: "https://example.com"
+      text: "<i>Hello</i> from <strong>GraphQL</strong>"
+      captcha: "XXXXX"
+    }
+  ) {
+    id
+    parentId
+    fullName
+    text
+    createdAt
+    attachments {
+      fileName
+      url
+    }
+  }
+}
+```
+
+### 6. Лайк / дизлайк (`voteComment`)
+
+`value`: `1` (лайк) або `-1` (дизлайк); повторний виклик із тим самим значенням знімає голос:
+
+```graphql
+mutation {
+  voteComment(commentId: "<COMMENT_UUID>", value: 1) {
+    commentId
+    votesScore
+    userVote
+  }
+}
+```
+
+### Приклад через `curl`
+
+```bash
+# Список кореневих коментарів
+curl -sS -X POST http://localhost:3001/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"query { comments(input: { page: 1, limit: 5 }) { total data { id fullName text repliesCount votesScore } } }"}'
+
+# Голосування (збереження гостьової cookie voter_id)
+curl -sS -c /tmp/gql-cookies.txt -b /tmp/gql-cookies.txt \
+  -X POST http://localhost:3001/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation ($id: String!, $val: Int!) { voteComment(commentId: $id, value: $val) { commentId votesScore userVote } }","variables":{"id":"<COMMENT_UUID>","val":1}}'
+```
 
 ## Покрокова перевірка всіх сценаріїв (чекліст + HTML-приклади)
 
@@ -546,7 +698,7 @@ npm run check / check:branch
 ### Крок 9. Перевірка API через Swagger, GraphQL і Postman
 
 1. **Swagger UI:** відкрийте `http://localhost:3001/api/v1/docs` (або `:4000/api/v1/docs`).
-2. **GraphQL Playground (у dev):** відкрийте `http://localhost:4000/graphql` і виконайте `{ health }`.
+2. **GraphQL Playground:** відкрийте `http://localhost:3001/graphql` (або `:4000/graphql` / `<API_URL>/graphql`) і виконайте запити з розділу [GraphQL-запити (Playground та curl)](#graphql-запити-playground-та-curl).
 3. **Postman:**
    - Імпортуйте [`docs/comments-api.postman_collection.json`](docs/comments-api.postman_collection.json).
    - У вкладці **Variables** колекції перевірте `baseUrl`, `graphqlUrl`, `wsUrl` (`3001` для Docker або `4000` для `npm run dev:api`).
