@@ -18,6 +18,7 @@ export class CommentType {
   @Field() email!: string;
   @Field() homepage!: string;
   @Field(() => String, { nullable: true }) parentId!: string | null;
+  @Field(() => Int) repliesCount!: number;
   @Field(() => [CommentAttachmentType]) attachments!: CommentAttachmentType[];
 }
 

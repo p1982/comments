@@ -20,6 +20,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiQuery,
+  ApiServiceUnavailableResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -40,6 +41,7 @@ import {
 import { ZodValidationPipe } from '@app/common/pipes/validation.pipe';
 import { User } from '@app/common/pipes/user.pipe';
 import { AuthGuard, type RequestWithUser } from '@app/common/guards/auth.guard';
+import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 import type { UsersEntity } from '@app/users/entity/users.entity';
 import { SearchService } from '@app/search/search.service';
 
@@ -137,8 +139,9 @@ export class CommentsController {
   @ApiOperation({
     summary: 'Search comments',
     description:
-      'Full-text search over plainText and author name via Elasticsearch. ' +
-      'Returns hydrated comments from Postgres in hit order. HTML tags are stripped into plainText for matching only.',
+      'Full-text and substring search over plainText and author name via Elasticsearch, ' +
+      'with automatic PostgreSQL ILIKE fallback when Elasticsearch is unavailable. ' +
+      'Returns hydrated comments from Postgres. HTML tags are stripped into plainText for matching only.',
   })
   @ApiQuery({
     name: 'q',
@@ -157,6 +160,7 @@ export class CommentsController {
     schema: { type: 'integer', minimum: 1, maximum: 25, default: 25 },
   })
   @ApiOkResponse({ type: CommentResponseDto, isArray: true })
+  @ApiServiceUnavailableResponse({ description: ERROR_MESSAGES.searchUnavailable })
   searchComments(
     @Query(new ZodValidationPipe(commentsSearchSchema)) query: CommentsSearchQuery,
   ): Promise<CommentsResult> {

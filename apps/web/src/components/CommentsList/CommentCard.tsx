@@ -9,6 +9,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReplyIcon from '@mui/icons-material/Reply';
 import TagIcon from '@mui/icons-material/Tag';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { getApiUrl, sanitizeHtml, type CommentAttachments } from '@comments/shared';
 import useCommentsStore from '@/store/comments/comments.store';
@@ -21,6 +22,7 @@ import {
   ActionButton,
   ActionRow,
   AddCommentButton,
+  AttachmentsRow,
   AttachmentThumb,
   AuthorName,
   Card,
@@ -29,6 +31,8 @@ import {
   CommentEmail,
   CommentText,
   Header,
+  RepliesCount,
+  RepliesToggleButton,
   VoteCount,
   VoteRow,
 } from './CommentCard.styled';
@@ -49,12 +53,13 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
   const comment = useCommentsStore(
     (state) => state.comments[id] ?? state.childrenComments[rootId]?.comments[id] ?? null,
   );
-
   const thread = useCommentsStore((state) => state.childrenComments[rootId]);
+  const isLoadingChildren = useCommentsStore((state) => Boolean(state.loadingChildrenIds[id]));
+  const expanded = useCommentsStore((state) => Boolean(state.expandedRootIds[id]));
   const openReplyForm = useCommentsStore((state) => state.openReplyForm);
   const replyParentId = useCommentsStore((state) => state.commentTarget?.parentId ?? null);
   const fetchChildrenComments = useCommentsStore((state) => state.fetchChildrenComments);
-  const [expanded, setExpanded] = useState(false);
+  const setRootExpanded = useCommentsStore((state) => state.setRootExpanded);
   const [lightbox, setLightbox] = useState<CommentAttachments | null>(null);
 
   if (!comment) {
@@ -64,22 +69,23 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
   const initial = comment.fullName.trim().charAt(0).toUpperCase() || '?';
   const directChildIds =
     thread?.commentsIds.filter((childId) => thread.comments[childId]?.parentId === id) ?? [];
+  const repliesCount = Math.max(comment.repliesCount ?? 0, thread?.commentsIds.length ?? 0);
   const apiOrigin = getApiUrl().replace(/\/api\/v\d+$/, '');
 
   const handleRootIdClick = async () => {
     if (expanded) {
-      setExpanded(false);
+      setRootExpanded(id, false);
       return;
     }
 
     await fetchChildrenComments(id);
-    setExpanded(true);
+    setRootExpanded(id, true);
   };
 
   const handleReply = () => {
     openReplyForm(id, rootId);
-    if (comment.parentId === null) {
-      setExpanded(true);
+    if (comment.parentId === null && repliesCount > 0) {
+      setRootExpanded(id, true);
       void fetchChildrenComments(id);
     }
   };
@@ -90,15 +96,23 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
         <Header>
           <CommentAvatar $color={avatarColor(comment.fullName)}>{initial}</CommentAvatar>
           <AuthorName data-testid="comment-card-name">{comment.fullName}</AuthorName>
-          {comment.parentId === null && (
-            <ActionButton
+          {comment.parentId === null && repliesCount > 0 && (
+            <RepliesToggleButton
               size="small"
               aria-label={expanded ? 'Hide replies' : 'Show replies'}
               aria-expanded={expanded}
+              disabled={isLoadingChildren}
               onClick={() => void handleRootIdClick()}
             >
-              {expanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-            </ActionButton>
+              {isLoadingChildren ? (
+                <CircularProgress size={14} color="inherit" />
+              ) : expanded ? (
+                <KeyboardArrowUpIcon />
+              ) : (
+                <KeyboardArrowDownIcon />
+              )}
+              <RepliesCount>{repliesCount}</RepliesCount>
+            </RepliesToggleButton>
           )}
           <AddCommentButton type="button" aria-label="Add comment" onClick={handleReply}>
             <AddCommentOutlinedIcon />
@@ -135,26 +149,34 @@ const CommentCard = ({ id, rootId, depth = 0 }: { id: string; rootId: string; de
           data-testid="comment-card-text"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.text) }}
         />
-        {comment.attachments.map((file) =>
-          file.fileType === 'image' ? (
-            <Button
-              type="button"
-              key={file.id}
-              data-testid="comment-attachment-image"
-              onClick={() => setLightbox(file)}
-            >
-              <AttachmentThumb src={`${apiOrigin}${file.url}`} alt={file.fileName} />
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              key={file.id}
-              data-testid="comment-attachment-text"
-              onClick={() => setLightbox(file)}
-            >
-              {file.fileName}
-            </Button>
-          ),
+        {comment.attachments.length > 0 && (
+          <AttachmentsRow>
+            {comment.attachments.map((file) =>
+              file.fileType === 'image' ? (
+                <Button
+                  type="button"
+                  key={file.id}
+                  data-testid="comment-attachment-image"
+                  onClick={() => setLightbox(file)}
+                  sx={{ p: 0.5, minWidth: 0 }}
+                >
+                  <AttachmentThumb src={`${apiOrigin}${file.url}`} alt={file.fileName} />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  key={file.id}
+                  variant="outlined"
+                  size="small"
+                  data-testid="comment-attachment-text"
+                  onClick={() => setLightbox(file)}
+                  sx={{ maxWidth: '100%', textTransform: 'none', overflowWrap: 'anywhere' }}
+                >
+                  {file.fileName}
+                </Button>
+              ),
+            )}
+          </AttachmentsRow>
         )}
         {replyParentId === id && <CommentForm parentId={id} />}
         {(comment.parentId !== null || expanded) && directChildIds.length > 0 && (

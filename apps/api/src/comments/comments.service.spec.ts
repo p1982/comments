@@ -45,6 +45,7 @@ describe('CommentsService', () => {
     findById: jest.fn(),
     findAll: jest.fn(),
     findByRootId: jest.fn(),
+    countRepliesByRootIds: jest.fn(),
   };
   const configService = {
     getOrThrow: jest.fn(() => captchaSecret),
@@ -103,6 +104,7 @@ describe('CommentsService', () => {
     cache.get.mockResolvedValue(undefined);
     cache.set.mockResolvedValue(undefined);
     outboxRepository.insert.mockResolvedValue({ id: 'outbox-1' });
+    commentsRepository.countRepliesByRootIds.mockResolvedValue(new Map());
   });
 
   it('creates a user inside the transaction when the email is unknown', async () => {
@@ -123,6 +125,7 @@ describe('CommentsService', () => {
       email: 'ann@example.com',
       homepage: 'https://ann.example',
       parentId: null,
+      repliesCount: 0,
       attachments: [],
     });
     expect(usersRepository.findByEmail).toHaveBeenCalledWith('ann@example.com');
@@ -292,6 +295,7 @@ describe('CommentsService', () => {
       homepage: 'https://ann.example',
     } as UsersEntity;
     commentsRepository.findAll.mockResolvedValue([[{ ...savedComment, user: savedUser }], 1]);
+    commentsRepository.countRepliesByRootIds.mockResolvedValue(new Map([[savedComment.id, 3]]));
 
     await expect(
       service.getComments({ page: 1, limit: 25, sort: 'createdAt', order: 'desc' }),
@@ -305,6 +309,7 @@ describe('CommentsService', () => {
           email: 'ann@example.com',
           homepage: 'https://ann.example',
           parentId: null,
+          repliesCount: 3,
           attachments: [],
         },
       ],
@@ -386,6 +391,7 @@ describe('CommentsService', () => {
           email: 'ann@example.com',
           homepage: 'https://ann.example',
           parentId: savedComment.id,
+          repliesCount: 0,
           attachments: [],
         },
       ],

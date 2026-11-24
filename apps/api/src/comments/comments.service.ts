@@ -91,8 +91,11 @@ export class CommentsService {
         return cached;
       }
       const [comments, total] = await this.commentsRepository.findAll(query);
+      const replyCounts = await this.commentsRepository.countRepliesByRootIds(
+        comments.map((c) => c.id),
+      );
       const result: CommentsResult = {
-        data: comments.map((c) => toCommentResponse(c, c.user)),
+        data: comments.map((c) => toCommentResponse(c, c.user, replyCounts.get(c.id) ?? 0)),
         total,
         totalPages: Math.ceil(total / query.limit),
         status: 'success',

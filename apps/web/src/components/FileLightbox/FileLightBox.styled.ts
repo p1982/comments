@@ -29,6 +29,7 @@ export const Overlay = styled(Box).attrs({
 })`
   position: fixed;
   inset: 0;
+  padding: 16px;
   background-color: rgba(0, 0, 0, 0.72);
   display: grid;
   place-items: center;
@@ -37,12 +38,24 @@ export const Overlay = styled(Box).attrs({
 `;
 
 export const Content = styled(Box)`
-  max-width: 90vw;
+  max-width: 100%;
   max-height: 90vh;
 `;
 
 export const LightBoxImage = styled.img`
-  max-width: 100%;
-  max-height: 90vh;
+  display: block;
+  max-width: min(100%, 92vw);
+  max-height: 85vh;
+  border-radius: 8px;
+  animation: ${zoomIn} 180ms ease;
+`;
+
+export const LightBoxFrame = styled.iframe`
+  display: block;
+  width: min(720px, 92vw);
+  height: min(480px, 80vh);
+  border: 0;
+  border-radius: 8px;
+  background-color: #fff;
   animation: ${zoomIn} 180ms ease;
 `;

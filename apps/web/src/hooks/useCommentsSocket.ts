@@ -11,6 +11,7 @@ export const useCommentsSocket = () => {
 
   useEffect(() => {
     const socket = io(wsUrl, { withCredentials: true });
+
     socket.on(WS_COMMENT_CREATED, (comment: CommentResponse) => {
       applyRemoteComment(comment);
     });
