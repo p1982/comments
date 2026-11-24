@@ -32,6 +32,7 @@ export default tseslint.config(
             'apps/web/src/api/axios/*.spec.ts',
             'apps/web/src/api/services/*.spec.ts',
             'apps/web/src/config/*.spec.ts',
+            'apps/web/src/store/comments/*.spec.ts',
           ],
           defaultProject: 'apps/web/tsconfig.spec.json',
         },
