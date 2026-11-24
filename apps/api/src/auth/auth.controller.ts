@@ -20,9 +20,10 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { CookieOptions, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 
 import { CookiesName, ENDPOINTS } from '@comments/shared';
+import { buildBaseCookieOptions } from '@app/common/cookies/cookie-options';
 import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 
 import { AuthStatusDto } from './dto/auth-status.dto';
@@ -50,12 +51,6 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {}
-
-  private readonly cookieOptions: CookieOptions = {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-  };
 
   @Post(ENDPOINTS.SIGNUP)
   @HttpCode(HttpStatus.CREATED)
@@ -133,13 +128,18 @@ export class AuthController {
     const refreshMaxAgeMs = Number(
       this.configService.get('JWT_REFRESH_MAX_AGE_MS', 7 * 24 * 60 * 60 * 1000),
     );
+    const cookieOptions = buildBaseCookieOptions({
+      corsOrigin: this.configService.get<string>('CORS_ORIGIN'),
+      cookieSameSite: this.configService.get<string>('COOKIE_SAME_SITE'),
+      cookieSecure: this.configService.get<string>('COOKIE_SECURE'),
+    });
 
     res.cookie(CookiesName.ACCESS_TOKEN, tokens.accessToken, {
-      ...this.cookieOptions,
+      ...cookieOptions,
       maxAge: accessMaxAgeMs,
     });
     res.cookie(CookiesName.REFRESH_TOKEN, tokens.refreshToken, {
-      ...this.cookieOptions,
+      ...cookieOptions,
       maxAge: refreshMaxAgeMs,
     });
   }

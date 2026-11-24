@@ -37,10 +37,17 @@ async function bootstrap() {
   const apiBaseUrl = `http://localhost:${String(port)}`;
   const globalPrefix = `api/v${apiVersion}`;
 
+  app.set('trust proxy', 1);
+  app.disable('x-powered-by');
   app.setGlobalPrefix(globalPrefix);
 
+  const corsOrigin = config
+    .get<string>('CORS_ORIGIN', 'http://localhost:3000')
+    .trim()
+    .replace(/\/$/, '');
+
   app.enableCors({
-    origin: config.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
+    origin: corsOrigin,
     credentials: true,
   });
 

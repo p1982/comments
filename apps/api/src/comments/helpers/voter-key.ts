@@ -1,5 +1,6 @@
 import type { CookieOptions } from 'express';
 
+import { buildBaseCookieOptions, type CookieSecurityEnv } from '@app/common/cookies/cookie-options';
 import type { UsersEntity } from '@app/users/entity/users.entity';
 
 export const VOTER_COOKIE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
@@ -28,12 +29,10 @@ export const resolveVoterKey = (
 /**
  * Builds cookie options for the anonymous `voter_id` httpOnly cookie (1-year TTL).
  *
- * @param isProduction Sets `secure: true` in production HTTPS deployments.
+ * @param env Optional cookie security env override (defaults to `process.env`).
  * @returns Express `CookieOptions`.
  */
-export const buildVoterCookieOptions = (isProduction: boolean): CookieOptions => ({
-  httpOnly: true,
-  sameSite: 'lax',
-  secure: isProduction,
+export const buildVoterCookieOptions = (env?: CookieSecurityEnv): CookieOptions => ({
+  ...buildBaseCookieOptions(env),
   maxAge: VOTER_COOKIE_MAX_AGE_MS,
 });
