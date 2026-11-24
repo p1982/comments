@@ -5,6 +5,7 @@ import { DataSource, type DataSourceOptions } from 'typeorm';
 import { config as loadEnv } from 'dotenv';
 
 import { CommentsEntity } from '@app/comments/entity/comments.entity';
+import { CommentVotesEntity } from '@app/comments/entity/comment-votes.entity';
 import { UsersEntity } from '@app/users/entity/users.entity';
 import { AttachmentsEntity } from '@app/attachments/entity/attachments.entity';
 import { OutboxEventsEntity } from '@app/outbox/entity/outbox.entity';
@@ -13,6 +14,14 @@ loadEnv({ path: join(__dirname, '../../../../.env') });
 
 const config = new ConfigService();
 
+const entities = [
+  CommentsEntity,
+  CommentVotesEntity,
+  UsersEntity,
+  AttachmentsEntity,
+  OutboxEventsEntity,
+];
+
 export const getDataSource = (config: ConfigService): DataSourceOptions => {
   const databaseUrl = config.get<string>('DATABASE_URL');
   if (databaseUrl) {
@@ -20,7 +29,7 @@ export const getDataSource = (config: ConfigService): DataSourceOptions => {
       type: 'postgres',
       url: databaseUrl,
       ssl: { rejectUnauthorized: false },
-      entities: [CommentsEntity, UsersEntity, AttachmentsEntity, OutboxEventsEntity],
+      entities,
       migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
       synchronize: ['true', '1', 'yes'].includes(
         (config.get<string>('DB_SYNC') ?? 'false').toLowerCase(),
@@ -34,7 +43,7 @@ export const getDataSource = (config: ConfigService): DataSourceOptions => {
     username: config.get<string>('DB_USER', 'postgres'),
     password: config.get<string>('DB_PASSWORD', '1'),
     database: config.get<string>('DB_NAME', 'comments'),
-    entities: [CommentsEntity, UsersEntity, AttachmentsEntity, OutboxEventsEntity],
+    entities,
     migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
     synchronize: ['true', '1', 'yes'].includes(
       (config.get<string>('DB_SYNC') ?? 'false').toLowerCase(),

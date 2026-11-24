@@ -1,8 +1,14 @@
 'use client';
 
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { isAxiosError } from 'axios';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'react-toastify';
@@ -36,26 +42,123 @@ const emptyForm = {
   homepage: '',
 };
 
+type FormField = keyof typeof emptyForm;
+type FieldErrors = Partial<Record<FormField, string>>;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const URL_RE = /^https?:\/\/.+/i;
+
 const AuthModal = ({ open, mode, onClose, onModeChange, onSuccess }: AuthModalProps) => {
   const t = useTranslations('Auth');
   const [form, setForm] = useState(emptyForm);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const tr = (key: string, fallback: string): string => (t.has(key) ? t(key) : fallback);
 
   useEffect(() => {
     if (!open) {
       return;
     }
     setForm(emptyForm);
+    setFieldErrors({});
+    setShowPassword(false);
     setError(null);
     setSubmitting(false);
   }, [open, mode]);
 
   const isSignUp = mode === 'signup';
 
+  const updateField = (field: FormField, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+    if (error) {
+      setError(null);
+    }
+  };
+
+  const validateForm = (): FieldErrors => {
+    const nextErrors: FieldErrors = {};
+    const email = form.email.trim();
+    const homepage = form.homepage.trim();
+
+    if (isSignUp && !form.fullName.trim()) {
+      nextErrors.fullName = tr('fullNameRequired', 'Please enter your full name');
+    }
+
+    if (!EMAIL_RE.test(email)) {
+      nextErrors.email = tr('invalidEmail', 'Please enter a valid email address');
+    }
+
+    if (!form.password) {
+      nextErrors.password = tr('passwordRequired', 'Please enter your password');
+    } else if (isSignUp && form.password.length < 6) {
+      nextErrors.password = tr('passwordTooShort', 'Password must be at least 6 characters');
+    }
+
+    if (isSignUp && homepage && !URL_RE.test(homepage)) {
+      nextErrors.homepage = tr('invalidHomepage', 'Homepage must start with http:// or https://');
+    }
+
+    return nextErrors;
+  };
+
+  const mapBackendMessage = (raw: string): string => {
+    const normalized = raw.trim().toLowerCase();
+    if (normalized.includes('already registered')) {
+      return tr('emailTaken', 'This email is already registered');
+    }
+    if (normalized.includes('invalid credentials')) {
+      return tr('invalidCredentials', 'Invalid email or password');
+    }
+    if (normalized.includes('valid email')) {
+      return tr('invalidEmail', 'Please enter a valid email address');
+    }
+    if (normalized.includes('at least 6 characters')) {
+      return tr('passwordTooShort', 'Password must be at least 6 characters');
+    }
+    if (normalized.includes('full name is required')) {
+      return tr('fullNameRequired', 'Please enter your full name');
+    }
+    if (normalized.includes('password is required')) {
+      return tr('passwordRequired', 'Please enter your password');
+    }
+    if (normalized.includes('valid url')) {
+      return tr('invalidHomepage', 'Homepage must start with http:// or https://');
+    }
+    return raw;
+  };
+
+  const resolveErrorMessage = (err: unknown): string => {
+    const fallback = isSignUp ? t('signUpError') : t('error');
+
+    if (isAxiosError<{ message?: string | string[] } | undefined>(err)) {
+      const apiMessage = err.response?.data?.message;
+      if (Array.isArray(apiMessage) && apiMessage.length > 0) {
+        return apiMessage.map(mapBackendMessage).join('. ');
+      }
+      if (typeof apiMessage === 'string' && apiMessage.trim().length > 0) {
+        return mapBackendMessage(apiMessage);
+      }
+    }
+
+    return fallback;
+  };
+
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -76,8 +179,8 @@ const AuthModal = ({ open, mode, onClose, onModeChange, onSuccess }: AuthModalPr
       toast.success(t('signedIn'));
       onSuccess?.();
       onClose();
-    } catch {
-      const message = isSignUp ? t('signUpError') : t('error');
+    } catch (err) {
+      const message = resolveErrorMessage(err);
       setError(message);
       toast.error(message);
     } finally {
@@ -97,7 +200,9 @@ const AuthModal = ({ open, mode, onClose, onModeChange, onSuccess }: AuthModalPr
               <TextField
                 label={t('fullName')}
                 value={form.fullName}
-                onChange={(event) => setForm((prev) => ({ ...prev, fullName: event.target.value }))}
+                onChange={(event) => updateField('fullName', event.target.value)}
+                error={Boolean(fieldErrors.fullName)}
+                helperText={fieldErrors.fullName}
                 required
                 fullWidth
                 autoComplete="name"
@@ -107,34 +212,58 @@ const AuthModal = ({ open, mode, onClose, onModeChange, onSuccess }: AuthModalPr
               label={t('email')}
               type="email"
               value={form.email}
-              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+              onChange={(event) => updateField('email', event.target.value)}
+              error={Boolean(fieldErrors.email)}
+              helperText={fieldErrors.email}
               required
               fullWidth
               autoComplete="email"
             />
             <TextField
               label={t('password')}
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               value={form.password}
-              onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+              onChange={(event) => updateField('password', event.target.value)}
+              error={Boolean(fieldErrors.password)}
+              helperText={fieldErrors.password}
               required
               fullWidth
               autoComplete={isSignUp ? 'new-password' : 'current-password'}
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        type="button"
+                        edge="end"
+                        aria-label={
+                          showPassword
+                            ? tr('hidePassword', 'Hide password')
+                            : tr('showPassword', 'Show password')
+                        }
+                        aria-pressed={showPassword}
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        onMouseDown={(event) => event.preventDefault()}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
             />
             {isSignUp ? (
               <TextField
                 label={t('homepage')}
                 value={form.homepage}
-                onChange={(event) => setForm((prev) => ({ ...prev, homepage: event.target.value }))}
+                onChange={(event) => updateField('homepage', event.target.value)}
+                error={Boolean(fieldErrors.homepage)}
+                helperText={fieldErrors.homepage}
                 fullWidth
                 autoComplete="url"
               />
             ) : null}
-            {error ? (
-              <Typography color="error" variant="body2">
-                {error}
-              </Typography>
-            ) : null}
+            {error ? <Alert severity="error">{error}</Alert> : null}
           </AuthFields>
         </AuthDialogContent>
         <AuthDialogActions>

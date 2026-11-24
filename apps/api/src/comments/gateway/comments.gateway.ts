@@ -2,7 +2,12 @@ import { Logger } from '@nestjs/common';
 import { OnGatewayConnection, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 
-import { WS_COMMENT_CREATED, type CommentResponse } from '@comments/shared';
+import {
+  WS_COMMENT_CREATED,
+  WS_COMMENT_VOTED,
+  type CommentResponse,
+  type CommentVotedEventPayload,
+} from '@comments/shared';
 
 @WebSocketGateway({
   cors: {
@@ -12,7 +17,7 @@ import { WS_COMMENT_CREATED, type CommentResponse } from '@comments/shared';
 })
 export class CommentsGateway implements OnGatewayConnection {
   @WebSocketServer()
-  server!: Server;
+  server?: Server;
 
   private readonly logger = new Logger(CommentsGateway.name);
 
@@ -21,6 +26,10 @@ export class CommentsGateway implements OnGatewayConnection {
   }
 
   broadcastCommentCreated(comment: CommentResponse) {
-    this.server.emit(WS_COMMENT_CREATED, comment);
+    this.server?.emit(WS_COMMENT_CREATED, comment);
+  }
+
+  broadcastCommentVoted(payload: CommentVotedEventPayload) {
+    this.server?.emit(WS_COMMENT_VOTED, payload);
   }
 }

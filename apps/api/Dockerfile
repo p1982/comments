@@ -5,6 +5,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json apps/api/
+COPY apps/e2e/package.json apps/e2e/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 COPY tools/apollo-playground-plugin tools/apollo-playground-plugin
@@ -31,7 +32,9 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 nodejs \
-  && useradd --system --uid 1001 --gid nodejs nestjs
+  && useradd --system --uid 1001 --gid nodejs nestjs \
+  && mkdir -p /app/apps/api/assets \
+  && chown -R nestjs:nodejs /app/apps/api
 
 COPY --from=builder --chown=nestjs:nodejs /app/apps/api/dist ./apps/api/dist
 COPY --from=builder --chown=nestjs:nodejs /app/apps/api/assets ./apps/api/assets
@@ -41,6 +44,6 @@ USER nestjs
 EXPOSE 3001
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/api/v'+(process.env.API_VERSION||1)+'/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.API_PORT||process.env.PORT||3001)+'/api/v'+(process.env.API_VERSION||1)+'/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "apps/api/dist/main.js"]

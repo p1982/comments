@@ -5,12 +5,16 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import styled from 'styled-components';
 
-export const Card = styled(Box)`
+export const Card = styled(Box)<{ $highlighted?: boolean }>`
   overflow: hidden;
   border-radius: 10px;
-  border: 1px solid #e6e8ec;
+  border: 1px solid ${({ $highlighted }) => ($highlighted ? '#1565c0' : '#e6e8ec')};
   background-color: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: ${({ $highlighted }) =>
+    $highlighted ? '0 0 0 3px rgba(21, 101, 192, 0.16)' : '0 1px 2px rgba(15, 23, 42, 0.04)'};
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease;
   min-width: 0;
 `;
 
@@ -122,9 +126,9 @@ export const AddCommentButton = styled(IconButton)`
   }
 `;
 
-export const ActionButton = styled(IconButton)`
+export const ActionButton = styled(IconButton)<{ $active?: boolean }>`
   && {
-    color: #8b95a7;
+    color: ${({ $active }) => ($active ? '#1565c0' : '#8b95a7')};
     padding: ${({ theme }) => theme.spacing(0.5)};
   }
 
@@ -165,12 +169,40 @@ export const VoteRow = styled(Stack).attrs({
   }
 `;
 
-export const VoteCount = styled(Typography)`
+export const VoteButton = styled(IconButton)<{ $active?: 'up' | 'down' | null }>`
   && {
-    min-width: 12px;
+    padding: ${({ theme }) => theme.spacing(0.5)};
+    color: ${({ $active }) =>
+      $active === 'up' ? '#2e7d32' : $active === 'down' ? '#d32f2f' : '#8b95a7'};
+    background-color: ${({ $active }) =>
+      $active === 'up'
+        ? 'rgba(46, 125, 50, 0.1)'
+        : $active === 'down'
+          ? 'rgba(211, 47, 47, 0.1)'
+          : 'transparent'};
+
+    &:hover {
+      background-color: ${({ $active }) =>
+        $active === 'up'
+          ? 'rgba(46, 125, 50, 0.16)'
+          : $active === 'down'
+            ? 'rgba(211, 47, 47, 0.16)'
+            : 'rgba(15, 23, 42, 0.05)'};
+    }
+  }
+
+  svg {
+    font-size: 18px;
+  }
+`;
+
+export const VoteCount = styled(Typography)<{ $score?: number }>`
+  && {
+    min-width: 18px;
     text-align: center;
     font-size: 14px;
-    color: #6b7280;
+    font-weight: ${({ $score = 0 }) => ($score !== 0 ? 600 : 400)};
+    color: ${({ $score = 0 }) => ($score > 0 ? '#2e7d32' : $score < 0 ? '#d32f2f' : '#6b7280')};
   }
 `;
 

@@ -5,3 +5,10 @@ export {
   commentsSearchSchema,
   type CommentsSearchQuery,
 } from './comments/comments-search.schema.js';
+export {
+  commentVoteSchema,
+  commentVoteValues,
+  type CommentVoteSchema,
+  type CommentVoteValue,
+  type UserVoteValue,
+} from './comments/comment-vote.schema.js';

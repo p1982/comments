@@ -21,6 +21,8 @@ import type {
   CommentsListQuery,
   CommentsResult,
   CommentsSchema,
+  CommentVoteResult,
+  CommentVoteValue,
 } from '@comments/shared';
 import { AttachmentsRepository } from '@app/attachments/repository/attachments.repository';
 import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
@@ -31,7 +33,9 @@ import { OutboxRepository } from '@app/outbox/repository/outbox.repository';
 
 import { toCommentResponse } from './dto/comment-response.dto';
 import { CommentsRepository } from './repository/comments.repository';
+import { CommentVotesRepository } from './repository/comment-votes.repository';
 import { CommentsEntity } from './entity/comments.entity';
+import { CommentsGateway } from './gateway/comments.gateway';
 import { fitImage } from './helpers/fit-image';
 import { imageKind } from './helpers/image-kind';
 import { COMMENT_QUEUE, COMMENTS_LIST_CACHE_VERSION_KEY } from './comments.constants';
@@ -50,13 +54,40 @@ export class CommentsService {
     private readonly outboxRepository: OutboxRepository,
     @Inject(COMMENT_QUEUE) private readonly commentQueue: CommentQueuePort,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly commentVotesRepository: CommentVotesRepository,
+    private readonly commentsGateway: CommentsGateway,
   ) {}
 
   private getQueueMode() {
     return resolveCommentQueueMode(this.configService.get<string>('COMMENT_QUEUE_MODE'));
   }
 
-  async getCommentsByRootId(rootId: string): Promise<CommentsResult> {
+  private async attachUserVotes(
+    result: CommentsResult,
+    voterKey: string | null,
+  ): Promise<CommentsResult> {
+    if (!voterKey || result.data.length === 0) {
+      return result;
+    }
+
+    const votes = await this.commentVotesRepository.findUserVotesByCommentIds(
+      result.data.map((item) => item.id),
+      voterKey,
+    );
+
+    return {
+      ...result,
+      data: result.data.map((item) => ({
+        ...item,
+        userVote: votes.get(item.id) ?? 0,
+      })),
+    };
+  }
+
+  async getCommentsByRootId(
+    rootId: string,
+    voterKey: string | null = null,
+  ): Promise<CommentsResult> {
     this.logger.log(`Getting children comments for root id: ${rootId}`);
     try {
       const comments = await this.commentsRepository.findById(rootId);
@@ -65,9 +96,13 @@ export class CommentsService {
       }
 
       const childrenComments = await this.commentsRepository.findByRootId(rootId);
+      const userVotes = await this.commentVotesRepository.findUserVotesByCommentIds(
+        childrenComments.map((comment) => comment.id),
+        voterKey,
+      );
       return {
         data: childrenComments.map((comment: CommentsEntity) =>
-          toCommentResponse(comment, comment.user),
+          toCommentResponse(comment, comment.user, 0, userVotes.get(comment.id) ?? 0),
         ),
         status: 'success',
         message: 'Comments fetched successfully',
@@ -81,14 +116,17 @@ export class CommentsService {
     }
   }
 
-  async getComments(query: CommentsListQuery): Promise<CommentsResult> {
+  async getComments(
+    query: CommentsListQuery,
+    voterKey: string | null = null,
+  ): Promise<CommentsResult> {
     this.logger.log(`Getting all comments with query: ${JSON.stringify(query)}`);
     try {
       const version = (await this.cache.get<number>(COMMENTS_LIST_CACHE_VERSION_KEY)) ?? 0;
       const key = commentsListCacheKey(query, version);
       const cached = await this.cache.get<CommentsResult>(key);
       if (cached) {
-        return cached;
+        return await this.attachUserVotes(cached, voterKey);
       }
       const [comments, total] = await this.commentsRepository.findAll(query);
       const replyCounts = await this.commentsRepository.countRepliesByRootIds(
@@ -103,7 +141,47 @@ export class CommentsService {
       };
 
       await this.cache.set(key, result);
-      return result;
+      return await this.attachUserVotes(result, voterKey);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(error);
+      throw new InternalServerErrorException(ERROR_MESSAGES.internalServerError);
+    }
+  }
+
+  async voteComment(
+    commentId: string,
+    value: CommentVoteValue,
+    voterKey: string,
+  ): Promise<CommentVoteResult> {
+    this.logger.log(`Voting comment ${commentId} value=${String(value)}`);
+    try {
+      const existing = await this.commentsRepository.findById(commentId);
+      if (!existing) {
+        throw new NotFoundException(ERROR_MESSAGES.notFound);
+      }
+
+      const { votesScore, userVote } = await this.dataSource.transaction(async (manager) => {
+        const { delta, userVote: nextVote } = await this.commentVotesRepository.toggleVote(
+          commentId,
+          voterKey,
+          value,
+          manager,
+        );
+        const nextScore = await this.commentsRepository.adjustVotesScore(commentId, delta, manager);
+        return { votesScore: nextScore, userVote: nextVote };
+      });
+
+      await this.bumpCommentsListCache();
+      this.commentsGateway.broadcastCommentVoted({
+        commentId,
+        rootId: existing.rootId,
+        votesScore,
+      });
+
+      return { commentId, votesScore, userVote };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;

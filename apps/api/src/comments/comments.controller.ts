@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -16,6 +17,7 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiCreatedResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -24,17 +26,21 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 
 import {
   commentSortFields,
   commentSortOrders,
   commentsListSchema,
   commentsSchema,
+  commentVoteSchema,
   CookiesName,
   ENDPOINTS,
   type CommentsListQuery,
   type CommentsResult,
   type CommentsSchema,
+  type CommentVoteResult,
+  type CommentVoteSchema,
   commentsSearchSchema,
   type CommentsSearchQuery,
 } from '@comments/shared';
@@ -46,8 +52,13 @@ import type { UsersEntity } from '@app/users/entity/users.entity';
 import { SearchService } from '@app/search/search.service';
 
 import { CommentsService } from './comments.service';
-import { CommentResponseDto } from './dto/comment-response.dto';
+import {
+  CommentResponseDto,
+  CommentVoteDto,
+  CommentVoteResultDto,
+} from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { buildVoterCookieOptions, resolveVoterKey } from './helpers/voter-key';
 
 @ApiTags(ENDPOINTS.COMMENTS)
 @Controller(ENDPOINTS.COMMENTS)
@@ -106,6 +117,7 @@ export class CommentsController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get root comments' })
   @ApiQuery({
     name: 'page',
@@ -130,12 +142,16 @@ export class CommentsController {
   @ApiOkResponse({ type: CommentResponseDto, isArray: true })
   getComments(
     @Query(new ZodValidationPipe(commentsListSchema)) query: CommentsListQuery,
+    @User() user: UsersEntity | null = null,
+    @Req() request?: RequestWithUser,
   ): Promise<CommentsResult> {
-    return this.commentsService.getComments(query);
+    const voterKey = resolveVoterKey(user, request?.cookies?.voter_id);
+    return this.commentsService.getComments(query, voterKey);
   }
 
   @Get(ENDPOINTS.SEARCH)
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
   @ApiOperation({
     summary: 'Search comments',
     description:
@@ -163,16 +179,59 @@ export class CommentsController {
   @ApiServiceUnavailableResponse({ description: ERROR_MESSAGES.searchUnavailable })
   searchComments(
     @Query(new ZodValidationPipe(commentsSearchSchema)) query: CommentsSearchQuery,
+    @User() user: UsersEntity | null = null,
+    @Req() request?: RequestWithUser,
   ): Promise<CommentsResult> {
-    return this.searchService.search(query);
+    const voterKey = resolveVoterKey(user, request?.cookies?.voter_id);
+    return this.searchService.search(query, voterKey);
+  }
+
+  @Post(`:id${ENDPOINTS.VOTE}`)
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: 'Vote on a comment (like / dislike)',
+    description:
+      'Toggles an upvote (+1) or downvote (-1) for the signed-in user or guest voter cookie. ' +
+      'Clicking the same vote again removes it; clicking the opposite switches it.',
+  })
+  @ApiParam({ name: 'id', description: 'Comment id' })
+  @ApiBody({ type: CommentVoteDto })
+  @ApiOkResponse({ type: CommentVoteResultDto })
+  @ApiNotFoundResponse({ description: ERROR_MESSAGES.notFound })
+  voteComment(
+    @Param('id') id: string,
+    @User() user: UsersEntity | null,
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) response: Response,
+    @Body(new ZodValidationPipe(commentVoteSchema)) body: CommentVoteSchema,
+  ): Promise<CommentVoteResult> {
+    let voterKey = resolveVoterKey(user, request.cookies?.voter_id);
+    if (!voterKey) {
+      const guestId = crypto.randomUUID();
+      response.cookie(
+        CookiesName.VOTER_ID,
+        guestId,
+        buildVoterCookieOptions(process.env['NODE_ENV'] === 'production'),
+      );
+      voterKey = `guest:${guestId}`;
+    }
+
+    return this.commentsService.voteComment(id, body.value, voterKey);
   }
 
   @Get(':rootId')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get children comments by root id' })
   @ApiParam({ name: 'rootId', description: 'Root comment id' })
   @ApiOkResponse({ type: CommentResponseDto, isArray: true })
-  getCommentsByRootId(@Param('rootId') rootId: string): Promise<CommentsResult> {
-    return this.commentsService.getCommentsByRootId(rootId);
+  getCommentsByRootId(
+    @Param('rootId') rootId: string,
+    @User() user: UsersEntity | null = null,
+    @Req() request?: RequestWithUser,
+  ): Promise<CommentsResult> {
+    const voterKey = resolveVoterKey(user, request?.cookies?.voter_id);
+    return this.commentsService.getCommentsByRootId(rootId, voterKey);
   }
 }

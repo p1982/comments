@@ -98,22 +98,77 @@ describe('HealthService', () => {
   });
 
   it('reports GraphQL up via HTTP when the schema host is missing', async () => {
-    const withoutSchema = new HealthService(
-      dataSource as unknown as DataSource,
-      httpAdapterHost as unknown as HttpAdapterHost,
-      null,
-    );
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ data: { health: 'API is running' } }),
-    });
+    const previousApiPort = process.env['API_PORT'];
+    const previousPort = process.env['PORT'];
+    process.env['API_PORT'] = '4000';
+    delete process.env['PORT'];
 
-    await expect(withoutSchema.check()).resolves.toEqual({
-      status: 'ok',
-      database: 'up',
-      graphql: 'up',
-      websocket: 'up',
-    });
+    try {
+      const withoutSchema = new HealthService(
+        dataSource as unknown as DataSource,
+        httpAdapterHost as unknown as HttpAdapterHost,
+        null,
+      );
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: { health: 'API is running' } }),
+      });
+
+      await expect(withoutSchema.check()).resolves.toEqual({
+        status: 'ok',
+        database: 'up',
+        graphql: 'up',
+        websocket: 'up',
+      });
+      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:4000/graphql', expect.any(Object));
+    } finally {
+      if (previousApiPort === undefined) {
+        delete process.env['API_PORT'];
+      } else {
+        process.env['API_PORT'] = previousApiPort;
+      }
+      if (previousPort === undefined) {
+        delete process.env['PORT'];
+      } else {
+        process.env['PORT'] = previousPort;
+      }
+    }
+  });
+
+  it('probes GraphQL over PORT when API_PORT is unset', async () => {
+    const previousApiPort = process.env['API_PORT'];
+    const previousPort = process.env['PORT'];
+    delete process.env['API_PORT'];
+    process.env['PORT'] = '3001';
+
+    try {
+      const withoutSchema = new HealthService(
+        dataSource as unknown as DataSource,
+        httpAdapterHost as unknown as HttpAdapterHost,
+        null,
+      );
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: { health: 'API is running' } }),
+      });
+
+      await expect(withoutSchema.check()).resolves.toMatchObject({
+        status: 'ok',
+        graphql: 'up',
+      });
+      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:3001/graphql', expect.any(Object));
+    } finally {
+      if (previousApiPort === undefined) {
+        delete process.env['API_PORT'];
+      } else {
+        process.env['API_PORT'] = previousApiPort;
+      }
+      if (previousPort === undefined) {
+        delete process.env['PORT'];
+      } else {
+        process.env['PORT'] = previousPort;
+      }
+    }
   });
 
   it('reports GraphQL down when the health query fails', async () => {

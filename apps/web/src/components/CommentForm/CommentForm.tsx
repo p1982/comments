@@ -1,16 +1,20 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { useId, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 
 import { commentsSchema, type CommentsSchema } from '@comments/shared';
+import commentsService from '@/api/services/comments.service';
 import useCommentsStore from '@/store/comments/comments.store';
 
 import CommentPreview from '../CommentPreview/CommentPreview';
@@ -19,6 +23,9 @@ interface CommentFormProps {
   parentId?: string;
 }
 
+const toSvgDataUrl = (svg: string): string =>
+  `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
 function CommentForm({ parentId }: CommentFormProps) {
   const [preview, setPreview] = useState<CommentsSchema | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -26,16 +33,26 @@ function CommentForm({ parentId }: CommentFormProps) {
   const [linkTitle, setLinkTitle] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [textFile, setTextFile] = useState<File | null>(null);
+  const [captchaSrc, setCaptchaSrc] = useState<string | null>(null);
+  const [captchaLoading, setCaptchaLoading] = useState(true);
 
   const t = useTranslations('HomePage');
+  const tr = (key: string, fallback: string) => (t.has(key) ? t(key) : fallback);
   const imageInputId = useId();
   const textFileInputId = useId();
   const createComment = useCommentsStore((state) => state.createComment);
   const closeCommentForm = useCommentsStore((state) => state.closeCommentForm);
+  const initialText = useCommentsStore((state) =>
+    parentId && state.commentTarget?.parentId === parentId
+      ? (state.commentTarget.initialText ?? '')
+      : '',
+  );
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const imageRef = useRef<HTMLInputElement | null>(null);
   const textFileRef = useRef<HTMLInputElement | null>(null);
   const linkSelection = useRef({ start: 0, end: 0 });
+  const mountedRef = useRef(true);
+  const captchaRequestIdRef = useRef(0);
 
   const {
     register,
@@ -44,6 +61,8 @@ function CommentForm({ parentId }: CommentFormProps) {
     trigger,
     getValues,
     setValue,
+    setError,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<CommentsSchema>({
     resolver: zodResolver(commentsSchema),
@@ -52,10 +71,68 @@ function CommentForm({ parentId }: CommentFormProps) {
       email: '',
       homepage: '',
       captcha: '',
-      text: '',
+      text: initialText,
       ...(parentId ? { parentId } : {}),
     },
   });
+
+  const loadCaptcha = useCallback(
+    async (options?: { clearInput?: boolean; clearError?: boolean }) => {
+      const requestId = captchaRequestIdRef.current + 1;
+      captchaRequestIdRef.current = requestId;
+      setCaptchaLoading(true);
+      if (options?.clearInput) {
+        setValue('captcha', '');
+      }
+      if (options?.clearError) {
+        clearErrors('captcha');
+      }
+
+      try {
+        const { data } = await commentsService.getCaptcha();
+        if (!mountedRef.current || captchaRequestIdRef.current !== requestId) {
+          return;
+        }
+        const trimmed = data.trim();
+        setCaptchaSrc(trimmed.startsWith('<svg') ? toSvgDataUrl(trimmed) : null);
+      } catch {
+        if (!mountedRef.current || captchaRequestIdRef.current !== requestId) {
+          return;
+        }
+        setCaptchaSrc(null);
+      } finally {
+        if (mountedRef.current && captchaRequestIdRef.current === requestId) {
+          setCaptchaLoading(false);
+        }
+      }
+    },
+    [clearErrors, setValue],
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    void loadCaptcha();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [loadCaptcha]);
+
+  useEffect(() => {
+    if (!initialText) {
+      return;
+    }
+    const current = getValues('text');
+    if (current.includes(initialText)) {
+      return;
+    }
+    const next = current ? `${initialText}${current}` : initialText;
+    setValue('text', next, { shouldDirty: true });
+    requestAnimationFrame(() => {
+      const field = textRef.current;
+      field?.focus();
+      field?.setSelectionRange(next.length, next.length);
+    });
+  }, [getValues, initialText, setValue]);
 
   const { ref, ...textField } = register('text');
 
@@ -131,7 +208,13 @@ function CommentForm({ parentId }: CommentFormProps) {
     const message = useCommentsStore.getState().error;
 
     if (message) {
-      toast.error(message, { toastId: 'comments-error' });
+      const isCaptchaError = message.toLowerCase().includes('captcha');
+      const displayMessage = isCaptchaError ? tr('invalidCaptcha', message) : message;
+      toast.error(displayMessage, { toastId: 'comments-error' });
+      if (isCaptchaError) {
+        setError('captcha', { type: 'server', message: displayMessage });
+        void loadCaptcha({ clearInput: true });
+      }
       return;
     }
 
@@ -374,17 +457,102 @@ function CommentForm({ parentId }: CommentFormProps) {
             {errors.text?.message}
           </Box>
         </Box>
-        <Box>
-          <TextField
-            fullWidth
-            size="small"
-            {...register('captcha')}
-            placeholder={t('captchaLabel')}
-            error={Boolean(errors.captcha)}
-            slotProps={{ htmlInput: { 'data-testid': 'comment-captcha' } }}
-          />
-          <Box sx={{ minHeight: 22, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
-            {errors.captcha?.message}
+        <Box sx={{ mb: 0.5 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'stretch', sm: 'flex-start' },
+              gap: 1.5,
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flexShrink: 0,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 180,
+                  height: 60,
+                  borderRadius: 1,
+                  border: '1px solid #d0d7de',
+                  bgcolor: '#f4f4f5',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {captchaLoading && !captchaSrc ? (
+                  <Skeleton variant="rectangular" width={180} height={60} />
+                ) : captchaSrc ? (
+                  <Box
+                    component="img"
+                    src={captchaSrc}
+                    alt={tr('captchaImageAlt', 'CAPTCHA image')}
+                    data-testid="comment-captcha-image"
+                    sx={{
+                      display: 'block',
+                      width: 180,
+                      height: 60,
+                      objectFit: 'contain',
+                      userSelect: 'none',
+                      opacity: captchaLoading ? 0.5 : 1,
+                      transition: 'opacity 150ms ease',
+                    }}
+                  />
+                ) : (
+                  <Typography
+                    variant="caption"
+                    color="error"
+                    sx={{ px: 1, textAlign: 'center', lineHeight: 1.3 }}
+                  >
+                    {tr('captchaLoadError', 'Failed to load CAPTCHA')}
+                  </Typography>
+                )}
+              </Box>
+              <IconButton
+                type="button"
+                size="small"
+                onClick={() => void loadCaptcha({ clearInput: true, clearError: true })}
+                disabled={captchaLoading}
+                aria-label={tr('captchaRefresh', 'Refresh CAPTCHA')}
+                title={tr('captchaRefresh', 'Refresh CAPTCHA')}
+                data-testid="comment-captcha-refresh"
+                sx={{
+                  border: '1px solid #d0d7de',
+                  borderRadius: 1,
+                  width: 38,
+                  height: 38,
+                  flexShrink: 0,
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <TextField
+                fullWidth
+                size="small"
+                {...register('captcha')}
+                placeholder={t('captchaLabel')}
+                error={Boolean(errors.captcha)}
+                slotProps={{
+                  htmlInput: {
+                    'data-testid': 'comment-captcha',
+                    autoComplete: 'off',
+                  },
+                }}
+              />
+              <Box sx={{ minHeight: 22, color: 'error.main', fontSize: 12, lineHeight: '20px' }}>
+                {errors.captcha?.message}
+              </Box>
+            </Box>
           </Box>
         </Box>
         <Box

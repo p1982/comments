@@ -8,6 +8,9 @@ describe('CommentsRepository', () => {
     select: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
     leftJoinAndSelect: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    setParameter: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     groupBy: jest.fn().mockReturnThis(),
@@ -15,6 +18,7 @@ describe('CommentsRepository', () => {
     addOrderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
+    execute: jest.fn(),
     getManyAndCount: jest.fn(),
     getRawMany: jest.fn(),
   };
@@ -187,5 +191,21 @@ describe('CommentsRepository', () => {
     });
     expect(queryBuilder.andWhere).toHaveBeenCalledWith('comment.parentId IS NOT NULL');
     expect(queryBuilder.groupBy).toHaveBeenCalledWith('comment.rootId');
+  });
+
+  it('adjusts votes score atomically and returns the updated score', async () => {
+    queryBuilder.execute.mockResolvedValue({ affected: 1 });
+    repo.findOne.mockResolvedValueOnce({ id: 'c1', votesScore: 3 }).mockResolvedValueOnce(null);
+
+    await expect(comments.adjustVotesScore('c1', 1, manager)).resolves.toBe(3);
+    expect(queryBuilder.update).toHaveBeenCalled();
+    expect(queryBuilder.setParameter).toHaveBeenCalledWith('delta', 1);
+    expect(queryBuilder.execute).toHaveBeenCalledTimes(1);
+
+    const setArg = queryBuilder.set.mock.calls[0]?.[0] as { votesScore: () => string };
+    expect(setArg.votesScore()).toBe('"votes_score" + :delta');
+
+    await expect(comments.adjustVotesScore('c1', 0, manager)).resolves.toBe(0);
+    expect(queryBuilder.execute).toHaveBeenCalledTimes(1);
   });
 });

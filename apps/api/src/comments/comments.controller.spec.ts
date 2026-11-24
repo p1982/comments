@@ -18,6 +18,7 @@ describe('CommentsController', () => {
     createComment: jest.fn(),
     getComments: jest.fn(),
     getCommentsByRootId: jest.fn(),
+    voteComment: jest.fn(),
   };
   const searchService = {
     search: jest.fn(),
@@ -86,15 +87,70 @@ describe('CommentsController', () => {
     commentsService.getCommentsByRootId.mockResolvedValue(thread);
 
     await expect(controller.getCommentsByRootId('root-1')).resolves.toEqual(thread);
-    expect(commentsService.getCommentsByRootId).toHaveBeenCalledWith('root-1');
+    expect(commentsService.getCommentsByRootId).toHaveBeenCalledWith('root-1', null);
   });
 
-  it('passes the list query to the service', async () => {
+  it('passes the list query and voter key to the service', async () => {
     const query = { page: 2, limit: 25, sort: 'email' as const, order: 'asc' as const };
     const page = { data: [], status: 'success' as const, message: 'ok' };
     commentsService.getComments.mockResolvedValue(page);
 
-    await expect(controller.getComments(query)).resolves.toEqual(page);
-    expect(commentsService.getComments).toHaveBeenCalledWith(query);
+    await expect(
+      controller.getComments(query, null, { cookies: { voter_id: 'guest-1' } } as RequestWithUser),
+    ).resolves.toEqual(page);
+    expect(commentsService.getComments).toHaveBeenCalledWith(query, 'guest:guest-1');
+  });
+
+  it('passes search query and voter key to the search service', async () => {
+    const query = { q: 'hello', page: 1, limit: 25 };
+    const page = { data: [], status: 'success' as const, message: 'ok' };
+    searchService.search.mockResolvedValue(page);
+
+    await expect(
+      controller.searchComments(query, { id: 'u1' } as UsersEntity, {} as RequestWithUser),
+    ).resolves.toEqual(page);
+    expect(searchService.search).toHaveBeenCalledWith(query, 'user:u1');
+  });
+
+  it('votes as a guest and issues a voter_id cookie when absent', async () => {
+    const voteResult = { commentId: 'c1', votesScore: 1, userVote: 1 as const };
+    commentsService.voteComment.mockResolvedValue(voteResult);
+    const cookie = jest.fn();
+
+    await expect(
+      controller.voteComment('c1', null, { cookies: {} } as RequestWithUser, { cookie } as never, {
+        value: 1,
+      }),
+    ).resolves.toEqual(voteResult);
+
+    expect(cookie).toHaveBeenCalledWith(
+      'voter_id',
+      expect.any(String),
+      expect.objectContaining({ httpOnly: true, sameSite: 'lax' }),
+    );
+    expect(commentsService.voteComment).toHaveBeenCalledWith(
+      'c1',
+      1,
+      expect.stringMatching(/^guest:/),
+    );
+  });
+
+  it('votes as an authenticated user without setting a guest cookie', async () => {
+    const voteResult = { commentId: 'c1', votesScore: -1, userVote: -1 as const };
+    commentsService.voteComment.mockResolvedValue(voteResult);
+    const cookie = jest.fn();
+
+    await expect(
+      controller.voteComment(
+        'c1',
+        { id: 'u1' } as UsersEntity,
+        { cookies: {} } as RequestWithUser,
+        { cookie } as never,
+        { value: -1 },
+      ),
+    ).resolves.toEqual(voteResult);
+
+    expect(cookie).not.toHaveBeenCalled();
+    expect(commentsService.voteComment).toHaveBeenCalledWith('c1', -1, 'user:u1');
   });
 });
