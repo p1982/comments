@@ -44,4 +44,30 @@ describe('CaptchaController', () => {
     expect(response.type).toHaveBeenCalledWith('image/svg+xml');
     expect(response.send).toHaveBeenCalledWith('<svg></svg>');
   });
+
+  it('sets SameSite=None, Secure, and Partitioned when request arrives over HTTPS proxy', () => {
+    const response = {
+      setHeader: jest.fn(),
+      cookie: jest.fn(),
+      type: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+    };
+    captchaService.getCaptcha.mockReturnValue({ svg: '<svg></svg>', token: 'signed' });
+
+    controller.getCaptcha(
+      response as never,
+      {
+        headers: { 'x-forwarded-proto': 'https' },
+      } as never,
+    );
+
+    expect(response.cookie).toHaveBeenCalledWith(CookiesName.CAPTCHA, 'signed', {
+      httpOnly: true,
+      sameSite: 'none',
+      secure: true,
+      partitioned: true,
+      path: '/',
+      maxAge: 5 * 60 * 1000,
+    });
+  });
 });

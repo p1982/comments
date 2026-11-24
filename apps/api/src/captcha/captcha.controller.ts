@@ -1,7 +1,7 @@
-import { Controller, Get, HttpCode, HttpStatus, Res } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiCookieAuth, ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 import { CookiesName, ENDPOINTS } from '@comments/shared';
 import { buildBaseCookieOptions } from '@app/common/cookies/cookie-options';
@@ -33,14 +33,17 @@ export class CaptchaController {
     },
     content: { 'image/svg+xml': { schema: { type: 'string', format: 'binary' } } },
   })
-  getCaptcha(@Res() res: Response): void {
+  getCaptcha(@Res() res: Response, @Req() req?: Request): void {
     const { svg, token } = this.captchaService.getCaptcha();
     const maxAge = Number(this.config.get('CAPTCHA_MAX_AGE_MS', DEFAULT_CAPTCHA_MAX_AGE_MS));
-    const baseCookieOptions = buildBaseCookieOptions({
-      corsOrigin: this.config.get<string>('CORS_ORIGIN'),
-      cookieSameSite: this.config.get<string>('COOKIE_SAME_SITE'),
-      cookieSecure: this.config.get<string>('COOKIE_SECURE'),
-    });
+    const baseCookieOptions = buildBaseCookieOptions(
+      {
+        corsOrigin: this.config.get<string>('CORS_ORIGIN'),
+        cookieSameSite: this.config.get<string>('COOKIE_SAME_SITE'),
+        cookieSecure: this.config.get<string>('COOKIE_SECURE'),
+      },
+      req,
+    );
 
     res.setHeader('Cache-Control', 'no-store');
     res.cookie(CookiesName.CAPTCHA, token, {

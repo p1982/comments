@@ -17,7 +17,7 @@ const FileLightBox = ({ file, onClose }: FileLightBoxProps) => {
         {file.fileType === 'image' ? (
           <LightBoxImage src={src} alt={file.fileName} />
         ) : (
-          <LightBoxFrame src={src} title={file.fileName} />
+          <LightBoxFrame src={src} title={file.fileName} sandbox="" />
         )}
       </Content>
     </Overlay>

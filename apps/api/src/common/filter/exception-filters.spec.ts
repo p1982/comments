@@ -123,6 +123,33 @@ describe('exception filters', () => {
     }
   });
 
+  it('hides unexpected HTTP Error messages in production', () => {
+    const previousNodeEnv = process.env['NODE_ENV'];
+    process.env['NODE_ENV'] = 'production';
+    try {
+      const filter = new GlobalExceptionFilter();
+      const json = jest.fn();
+      const status = jest.fn(() => ({ json }));
+      filter.catch(
+        new Error('secret postgres column details'),
+        httpHost({ method: 'GET', url: '/comments' }, { status, json }),
+      );
+      expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: ERROR_MESSAGES.internalServerError,
+        }),
+      );
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env['NODE_ENV'];
+      } else {
+        process.env['NODE_ENV'] = previousNodeEnv;
+      }
+    }
+  });
+
   it('turns websocket failures into WsException payloads', () => {
     const filter = new WebsocketExceptionFilter();
     const host = {} as ArgumentsHost;

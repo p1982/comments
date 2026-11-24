@@ -69,6 +69,9 @@ export class AuthService {
 
   async refresh(refreshToken: string): Promise<AuthTokens> {
     const payload = await this.tokenService.verifyToken(refreshToken);
+    if (payload.type && payload.type !== 'refresh') {
+      throw new UnauthorizedException(ERROR_MESSAGES.unauthorized);
+    }
     const user = await this.userRepository.findById(payload.id);
 
     if (!user || user.deletedAt) {
@@ -79,7 +82,7 @@ export class AuthService {
   }
 
   private async issueAuthTokens(user: UsersEntity): Promise<AuthTokens> {
-    const payload = { id: user.id, email: user.email };
+    const basePayload = { id: user.id, email: user.email };
     const accessExpiresIn = this.configService.get<string>(
       'JWT_ACCESS_EXPIRES_IN',
       '15m',
@@ -90,8 +93,14 @@ export class AuthService {
     ) as StringValue;
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.tokenService.generateToken(payload, { expiresIn: accessExpiresIn }),
-      this.tokenService.generateToken(payload, { expiresIn: refreshExpiresIn }),
+      this.tokenService.generateToken(
+        { ...basePayload, type: 'access' },
+        { expiresIn: accessExpiresIn },
+      ),
+      this.tokenService.generateToken(
+        { ...basePayload, type: 'refresh' },
+        { expiresIn: refreshExpiresIn },
+      ),
     ]);
     return { accessToken, refreshToken };
   }
