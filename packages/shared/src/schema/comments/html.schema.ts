@@ -22,7 +22,7 @@ const attachHooks = (purify: DOMPurify) => {
     const attrName = data.attrName.toLowerCase();
 
     const dropAttribute = (): void => {
-      // DOMPurify лишає атрибут лише коли keepAttr залишається true.
+      // DOMPurify preserves an attribute unless keepAttr is explicitly set to false.
       // eslint-disable-next-line no-param-reassign
       data.keepAttr = false;
     };
@@ -38,7 +38,7 @@ const attachHooks = (purify: DOMPurify) => {
   });
 };
 
-// Jest 30 перехоплює require і не завантажує ESM-залежність jsdom. Браузерний шлях покритий тестом.
+// Jest 30 intercepts require() and cannot load the ESM jsdom dependency here; the browser path is covered in tests.
 /* v8 ignore start */
 const createNodePurify = (): DOMPurify => {
   const { createRequire } = process.getBuiltinModule('module');
@@ -66,4 +66,11 @@ const getPurify = (): DOMPurify => {
   return purify;
 };
 
+/**
+ * Sanitizes comment HTML with DOMPurify, allowing only `<a>`, `<code>`, `<i>`, and `<strong>`
+ * plus `http:` / `https:` `href` and `title` attributes on links.
+ *
+ * @param html Raw comment markup to sanitize.
+ * @returns Sanitized HTML safe for rendering.
+ */
 export const sanitizeHtml = (html: string): string => getPurify().sanitize(html, HTML_CONFIG);

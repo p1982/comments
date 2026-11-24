@@ -21,6 +21,13 @@ const attributesAllowed = (tag: string, raw: string): boolean => {
   }
   return rest.trim().length === 0;
 };
+/**
+ * Validates that comment markup is well-formed XHTML using only allowed tags (`a`, `code`, `i`, `strong`)
+ * with properly closed/nested pairs and permitted attributes on `<a>`.
+ *
+ * @param html Comment text to validate.
+ * @returns `true` when all tags are allowed, properly nested, and closed.
+ */
 export const isWellFormedHtml = (html: string): boolean => {
   const stack: string[] = [];
   let index = 0;

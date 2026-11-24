@@ -1,16 +1,21 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { Injectable, Logger } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import type { Cache } from 'cache-manager';
 import { DataSource, type EntityManager } from 'typeorm';
 
 import { AttachmentsRepository } from '@app/attachments/repository/attachments.repository';
 
-import { COMMENT_CREATED } from '../comments.constants';
+import { COMMENT_CREATED, COMMENTS_LIST_CACHE_VERSION_KEY } from '../comments.constants';
+import { toCommentResponse } from '../dto/comment-response.dto';
 import { CommentCreatedEvent } from '../events/comment-created.event';
+import { CommentsGateway } from '../gateway/comments.gateway';
 import { fitImage } from '../helpers/fit-image';
 import { imageKind } from '../helpers/image-kind';
+import { CommentsRepository } from '../repository/comments.repository';
 import type { CommentJob } from './comment-job';
 
 @Injectable()
@@ -20,6 +25,9 @@ export class CommentJobProcessor {
   constructor(
     private readonly dataSource: DataSource,
     private readonly attachmentsRepository: AttachmentsRepository,
+    private readonly commentsRepository: CommentsRepository,
+    private readonly commentsGateway: CommentsGateway,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly events: EventEmitter2,
   ) {}
 
@@ -53,6 +61,14 @@ export class CommentJobProcessor {
           manager,
         );
       });
+
+      const version = (await this.cache.get<number>(COMMENTS_LIST_CACHE_VERSION_KEY)) ?? 0;
+      await this.cache.set(COMMENTS_LIST_CACHE_VERSION_KEY, version + 1);
+
+      const updated = await this.commentsRepository.findById(job.commentId);
+      if (updated) {
+        this.commentsGateway.broadcastCommentCreated(toCommentResponse(updated, updated.user));
+      }
 
       this.logger.debug(`Processed image for comment ${job.commentId}`);
       return;

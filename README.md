@@ -196,6 +196,73 @@ open http://localhost:3000/uk
 - Попередній знімок міграцій (до голосування): [`docs/comments-schema-current.sql`](docs/comments-schema-current.sql)
 - Актуальна схема за всіма міграціями (`votes_score` + `comment_votes`): [`docs/comments-schema-latest.sql`](docs/comments-schema-latest.sql)
 
+```mermaid
+erDiagram
+  users ||--o{ comments : writes
+  comments ||--o{ comment_votes : receives
+  comments ||--o{ attachments : has
+  comments ||--o{ outbox_events : emits
+
+  users {
+    uuid id PK
+    varchar full_name
+    varchar email
+    varchar password_hash
+    varchar homepage
+    timestamp created_at
+    timestamp updated_at
+    timestamp deleted_at
+  }
+
+  comments {
+    uuid id PK
+    uuid user_id FK
+    uuid parent_id
+    uuid root_id
+    text text
+    int votes_score
+    timestamp created_at
+    timestamp updated_at
+    timestamp deleted_at
+  }
+
+  comment_votes {
+    uuid id PK
+    uuid comment_id FK
+    varchar voter_key
+    smallint value
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  attachments {
+    uuid id PK
+    uuid comment_id FK
+    varchar file_name
+    varchar file_type
+    varchar mime_type
+    int file_size
+    varchar storage_key
+    timestamp created_at
+    timestamp updated_at
+    timestamp deleted_at
+  }
+
+  outbox_events {
+    uuid id PK
+    varchar aggregate_type
+    uuid aggregated_id
+    varchar event_type
+    jsonb payload
+    int attempts
+    varchar error_message
+    timestamp created_at
+    timestamp processed_at
+  }
+```
+
+_Початкова діаграма проєктування (MySQL Workbench, для порівняння зі стартовим знімком):_
+
 ![Схема БД коментарів](https://res.cloudinary.com/dkdsf8hw3/image/upload/v1794220496/comments_db_ddj6ct.png)
 
 ## Тести
@@ -329,7 +396,16 @@ npm run check / check:branch
 - Env: `.env.example` (`PORT` / `API_PORT`, `CAPTCHA_SECRET`, `JWT_SECRET`, `COMMENT_QUEUE_MODE`, `ELASTICSEARCH_NODE`).
 - Порт API: `API_PORT` → `PORT` → `3001` (у Docker використовується `PORT=3001`, у `npm run dev:api` — `API_PORT=4000`).
 - URL API та GraphQL для web: `NEXT_PUBLIC_API_URL` або `${API_BASE_URL}/api/v${API_VERSION}` + автоматичний `NEXT_PUBLIC_GRAPHQL_URL` у `apps/web/next.config.js` (`getApiUrl()` з `@comments/shared`).
-- Черга: `COMMENT_QUEUE_MODE=sync|memory|rabbit`.
+
+### Режими черги (`COMMENT_QUEUE_MODE`)
+
+Події `comment.created` (WebSocket + індексація в Elasticsearch) у **всіх** режимах доставляються асинхронно через transactional outbox (`outbox_events` + `OutboxPublisherService`), а змінна `COMMENT_QUEUE_MODE` керує саме тим, як обробляються завантажені зображення (`process-image`, resize до `≤ 320×240` через `sharp`):
+
+| Режим    | Як працює                                                                                                                                             | Коли використовувати                                      |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `sync`   | Ресайз і збереження зображення виконуються синхронно всередині транзакції `POST /comments` до повернення `201`                                        | Детерміновані тести або мінімальний запуск без черг       |
+| `memory` | Вбудована in-process FIFO-черга у памʼяті Node.js; `POST /comments` відповідає одразу, а воркер у фоні зберігає картинку, оновлює кеш і шле WS-апдейт | Локальна розробка без піднятого RabbitMQ (`.env.example`) |
+| `rabbit` | Durable-черга в RabbitMQ (`RABBITMQ_URL`, `COMMENT_QUEUE_NAME`); фоновий консьюмер обробляє картинку, інвалідує кеш і шле WS-апдейт                   | Docker (`docker-compose.yml`) і продакшен-розгортання     |
 
 ## Покрокова перевірка всіх сценаріїв (чекліст + HTML-приклади)
 

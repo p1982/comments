@@ -26,6 +26,10 @@ interface CommentFormProps {
 const toSvgDataUrl = (svg: string): string =>
   `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
+const ALLOWED_IMAGE_EXT = /\.(jpe?g|png|gif)$/i;
+const MAX_TEXT_FILE_BYTES = 100 * 1024;
+
 function CommentForm({ parentId }: CommentFormProps) {
   const [preview, setPreview] = useState<CommentsSchema | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -33,6 +37,8 @@ function CommentForm({ parentId }: CommentFormProps) {
   const [linkTitle, setLinkTitle] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [textFile, setTextFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [textFileError, setTextFileError] = useState<string | null>(null);
   const [captchaSrc, setCaptchaSrc] = useState<string | null>(null);
   const [captchaLoading, setCaptchaLoading] = useState(true);
 
@@ -191,6 +197,51 @@ function CommentForm({ parentId }: CommentFormProps) {
     setLinkOpen(false);
   };
 
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) {
+      setImage(null);
+      setImageError(null);
+      return;
+    }
+    const validType = file.type
+      ? ALLOWED_IMAGE_TYPES.has(file.type)
+      : ALLOWED_IMAGE_EXT.test(file.name);
+    if (!validType) {
+      setImage(null);
+      setImageError(tr('invalidImageFile', 'Only JPG, PNG, or GIF images are allowed'));
+      if (imageRef.current) imageRef.current.value = '';
+      return;
+    }
+    setImage(file);
+    setImageError(null);
+  };
+
+  const handleTextFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) {
+      setTextFile(null);
+      setTextFileError(null);
+      return;
+    }
+    const validTxt =
+      file.name.toLowerCase().endsWith('.txt') && (file.type === '' || file.type === 'text/plain');
+    if (!validTxt) {
+      setTextFile(null);
+      setTextFileError(tr('invalidTextFileType', 'Only .txt text files are allowed'));
+      if (textFileRef.current) textFileRef.current.value = '';
+      return;
+    }
+    if (file.size > MAX_TEXT_FILE_BYTES) {
+      setTextFile(null);
+      setTextFileError(tr('textFileTooLarge', 'Text file must be at most 100 KB'));
+      if (textFileRef.current) textFileRef.current.value = '';
+      return;
+    }
+    setTextFile(file);
+    setTextFileError(null);
+  };
+
   const onSubmit = async (values: CommentsSchema) => {
     await createComment(
       {
@@ -221,6 +272,8 @@ function CommentForm({ parentId }: CommentFormProps) {
     reset();
     setImage(null);
     setTextFile(null);
+    setImageError(null);
+    setTextFileError(null);
     if (imageRef.current) imageRef.current.value = '';
     if (textFileRef.current) textFileRef.current.value = '';
     closeCommentForm();
@@ -374,9 +427,7 @@ function CommentForm({ parentId }: CommentFormProps) {
               aria-label={t('imageLabel')}
               data-testid="comment-image"
               ref={imageRef}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                setImage(event.target.files?.[0] ?? null);
-              }}
+              onChange={handleImageChange}
               sx={{ display: 'block', width: '100%', maxWidth: '100%', fontSize: 13 }}
             />
             {image?.name && (
@@ -391,6 +442,14 @@ function CommentForm({ parentId }: CommentFormProps) {
               >
                 {image.name}
               </Typography>
+            )}
+            {imageError && (
+              <Box
+                data-testid="comment-image-error"
+                sx={{ mt: 0.5, color: 'error.main', fontSize: 12, lineHeight: '18px' }}
+              >
+                {imageError}
+              </Box>
             )}
           </Box>
           <Box
@@ -418,9 +477,7 @@ function CommentForm({ parentId }: CommentFormProps) {
               aria-label={t('textFileLabel')}
               data-testid="comment-text-file"
               ref={textFileRef}
-              onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                setTextFile(event.target.files?.[0] ?? null)
-              }
+              onChange={handleTextFileChange}
               sx={{ display: 'block', width: '100%', maxWidth: '100%', fontSize: 13 }}
             />
             {textFile?.name && (
@@ -435,6 +492,14 @@ function CommentForm({ parentId }: CommentFormProps) {
               >
                 {textFile.name}
               </Typography>
+            )}
+            {textFileError && (
+              <Box
+                data-testid="comment-text-file-error"
+                sx={{ mt: 0.5, color: 'error.main', fontSize: 12, lineHeight: '18px' }}
+              >
+                {textFileError}
+              </Box>
             )}
           </Box>
         </Box>

@@ -18,6 +18,13 @@ export class CommentVotesRepository {
     private readonly commentVotesRepository: Repository<CommentVotesEntity>,
   ) {}
 
+  /**
+   * Fetches the current voter's vote values (`1` or `-1`) for a batch of comment IDs.
+   *
+   * @param commentIds Comment UUIDs to look up.
+   * @param voterKey Voter identifier (`user:<id>` or `guest:<uuid>`), or `null` when unknown.
+   * @returns Map from comment UUID to vote value.
+   */
   async findUserVotesByCommentIds(
     commentIds: string[],
     voterKey: string | null,
@@ -42,6 +49,18 @@ export class CommentVotesRepository {
     );
   }
 
+  /**
+   * Toggles a vote inside the caller's transaction:
+   * - no prior vote → inserts row (`delta = value`, `userVote = value`);
+   * - same vote repeated → deletes row (`delta = -value`, `userVote = 0`);
+   * - opposite vote → updates row (`delta = ±2`, `userVote = value`).
+   *
+   * @param commentId Target comment UUID.
+   * @param voterKey Stable voter identifier (`user:<id>` or `guest:<uuid>`).
+   * @param value Requested vote (`1` or `-1`).
+   * @param manager Active TypeORM transaction manager.
+   * @returns Score delta to apply to `comments.votes_score` and the resulting `userVote`.
+   */
   async toggleVote(
     commentId: string,
     voterKey: string,

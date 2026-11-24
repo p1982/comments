@@ -210,6 +210,17 @@ describe('commentsSchema', () => {
       expect(parse({ text: '<a href="javascript:alert(1)">x</a>' }).success).toBe(false);
     });
 
+    it('rejects empty or whitespace-only text', () => {
+      const empty = parse({ text: '' });
+      expect(empty.success).toBe(false);
+      if (!empty.success) {
+        expect(empty.error.issues[0]?.message).toBe('Text is required');
+      }
+
+      const spaces = parse({ text: '   ' });
+      expect(spaces.success).toBe(false);
+    });
+
     it('rejects text longer than 10000 characters', () => {
       expect(parse({ text: 'a'.repeat(10001) }).success).toBe(false);
     });

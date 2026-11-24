@@ -84,6 +84,14 @@ export class CommentsService {
     };
   }
 
+  /**
+   * Loads all nested replies belonging to a root comment thread and attaches the caller's vote state.
+   *
+   * @param rootId UUID of the top-level comment.
+   * @param voterKey Optional voter identifier (`user:<id>` or `guest:<uuid>`) to populate `userVote`.
+   * @returns Reply list response for the thread.
+   * @throws NotFoundException When the root comment does not exist.
+   */
   async getCommentsByRootId(
     rootId: string,
     voterKey: string | null = null,
@@ -116,6 +124,14 @@ export class CommentsService {
     }
   }
 
+  /**
+   * Returns a paginated, sorted page of root comments using the versioned in-process list cache,
+   * overlaying per-voter `userVote` values outside the shared cache.
+   *
+   * @param query Pagination and sort options (`page`, `limit`, `sort`, `order`).
+   * @param voterKey Optional voter identifier to overlay `userVote`.
+   * @returns Paginated root comments with total counts and reply counts.
+   */
   async getComments(
     query: CommentsListQuery,
     voterKey: string | null = null,
@@ -151,6 +167,16 @@ export class CommentsService {
     }
   }
 
+  /**
+   * Atomically toggles an upvote (`+1`) or downvote (`-1`) on a comment, updates `comments.votes_score`,
+   * invalidates the list cache, and broadcasts `comment.voted` over WebSocket.
+   *
+   * @param commentId Target comment UUID.
+   * @param value Vote direction (`1` for upvote, `-1` for downvote).
+   * @param voterKey Stable voter identifier (`user:<id>` or `guest:<uuid>`).
+   * @returns Updated aggregate score and the voter's resulting vote (`-1`, `0`, or `1`).
+   * @throws NotFoundException When the comment does not exist.
+   */
   async voteComment(
     commentId: string,
     value: CommentVoteValue,
@@ -191,6 +217,20 @@ export class CommentsService {
     }
   }
 
+  /**
+   * Validates the HMAC captcha cookie, persists the comment, optional attachments, and an outbox
+   * `comment.created` event in a single DB transaction, then enqueues async image resizing (when not
+   * in `sync` mode) and invalidates the list cache.
+   *
+   * @param comment Validated comment payload.
+   * @param captchaToken HMAC token from the `captcha` httpOnly cookie.
+   * @param user Signed-in user entity, or `null` for anonymous posting.
+   * @param image Optional uploaded image (JPG/PNG/GIF, fitted to <= 320x240).
+   * @param textFile Optional uploaded `.txt` file (<= 100 KB, no null bytes).
+   * @returns Hydrated comment DTO.
+   * @throws BadRequestException When captcha, image, or text file validation fails.
+   * @throws NotFoundException When `parentId` references a non-existent comment.
+   */
   async createComment(
     comment: CommentsSchema,
     captchaToken: string | null,

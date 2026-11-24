@@ -17,15 +17,16 @@ Peaks matter more than averages: the write path must not stall the list under co
 
 ## What we already have
 
-| Piece                 | Role today                                                            |
-| --------------------- | --------------------------------------------------------------------- |
-| PostgreSQL 16         | Source of truth (`users`, `comments`, `attachments`, `outbox_events`) |
-| Partial root indexes  | Fast root list by `created_at` / `user_id` when `parent_id IS NULL`   |
-| In-process list cache | 30s TTL, max 100 keys, version bump on `comment.created`              |
-| RabbitMQ              | Optional job queue (`COMMENT_QUEUE_MODE=rabbit`) for image fit + emit |
-| Elasticsearch 8       | Full-text search (`comments_v2`, `plainText`)                         |
-| Socket.IO             | Live `comment.created` broadcast                                      |
-| Local `/assets`       | Attachment files on disk (Docker volume)                              |
+| Piece                 | Role today                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------ |
+| PostgreSQL 16         | Source of truth (`users`, `comments` + `votes_score`, `comment_votes`, `attachments`, `outbox_events`) |
+| Partial root indexes  | Fast root list by `created_at` / `user_id` when `parent_id IS NULL`                                    |
+| Transactional outbox  | `outbox_events` inserted in the create TX; `OutboxPublisherService` publishes async (1s)               |
+| In-process list cache | 30s TTL, max 100 keys, version bump on create, vote, and async image completion                        |
+| RabbitMQ              | Durable job queue (`COMMENT_QUEUE_MODE=rabbit`) for async image fit + cache/WS update                  |
+| Elasticsearch 8       | Full-text + substring search (`ngram` + `wildcard`) with automatic PostgreSQL `ILIKE` fallback         |
+| Socket.IO             | Live `comment.created` and `comment.voted` broadcasts                                                  |
+| Local `/assets`       | Attachment files on disk (Docker volume)                                                               |
 
 Redis is **not** in compose yet. List cache is process-local Nest `cache-manager`.
 
@@ -66,39 +67,36 @@ Read SLA target for later load tests: p95 list page **&lt; 200 ms** on warm cach
 
 ### Current behaviour
 
-Create (REST + GraphQL) still does a **synchronous DB transaction**: captcha → resolve/create user → insert comment → optional `.txt` attachment. Then:
+Create (REST + GraphQL) executes a **short synchronous DB transaction**: captcha check → resolve/create user → insert comment → optional `.txt` attachment (or inline image fit in `sync` mode) → insert `comment.created` row into `outbox_events`. After commit, the API bumps the list-cache version and returns HTTP `201`:
 
-| `COMMENT_QUEUE_MODE` | After commit                                             |
-| -------------------- | -------------------------------------------------------- |
-| `sync` (default)     | Image fit + `comment.created` emit **inline** in request |
-| `memory`             | In-process FIFO for fit + emit                           |
-| `rabbit`             | Durable queue `comments.jobs` (producer+consumer in API) |
+| `COMMENT_QUEUE_MODE` | Image handling & side effects                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------- |
+| `sync` (default)     | Image fit inline in request TX; WS + ES run asynchronously via `OutboxPublisherService`               |
+| `memory`             | In-process FIFO processes `process-image`, bumps list cache, and broadcasts updated comment over WS   |
+| `rabbit`             | Durable RabbitMQ queue `comments.jobs` processes `process-image`, bumps list cache, and broadcasts WS |
 
-Listener on `comment.created`: Socket.IO broadcast, list-cache version bump, Elasticsearch index.
-
-Table `outbox_events` exists in schema/migrations but is **not wired** into create.
+Listener on `comment.created` (triggered by `OutboxPublisherService` polling `outbox_events` every 1s): Socket.IO broadcast + Elasticsearch index (`refresh: false`). Votes (`POST /comments/:id/vote` and GraphQL `voteComment`) run a short atomic transaction on `comment_votes` + `comments.votes_score`, bump list cache, and broadcast `comment.voted`.
 
 ### Capacity sketch (100k writes / 24h)
 
 - Average ~**1.2 writes/s**; peak planning ~**10–20 writes/s**.
-- Postgres can absorb that insert rate if the request only does a short TX and returns.
-- Heavy work (image resize, ES index, fan-out) must leave the HTTP critical path — partially done via Rabbit for fit/emit, still incomplete for durable async delivery.
+- Postgres can absorb that insert rate because the HTTP request performs only a short transaction and returns before ES/WS/image-resize side effects finish.
 
 ### How write stays safe for the list
 
-1. **Short TX** — only durable comment (+ text file meta/bytes) in the request transaction.
-2. **Async side effects** — image fit, search index, websocket, cache invalidation via queue/outbox so list queries are not waiting on sharp/ES.
-3. **Outbox (next)** — write `outbox_events` in the same TX as the comment; a worker publishes to Rabbit / emits events with retries (`feature/comments-write-path`).
-4. **One writer pool, many readers** — same Postgres today; if list p95 climbs under write load, add read replica or split connection pools before sharding.
+1. **Short TX + Transactional Outbox** — comment, optional `.txt`, and `outbox_events` commit atomically; HTTP returns immediately without waiting on ES or WS.
+2. **Async image pipeline** — in `memory` / `rabbit` modes, `sharp` resizing runs off the HTTP path, then invalidates the list cache and pushes the hydrated comment over Socket.IO.
+3. **List cache invalidation** — version bump on create, vote, and async image completion keeps paginated reads fresh while absorbing read bursts.
+4. **One writer pool, many readers** — same Postgres today; if list p95 climbs under write load, add a read replica or split connection pools before sharding.
 
 ### Gaps
 
-| Gap                         | Impact                                          | Follow-up                         |
-| --------------------------- | ----------------------------------------------- | --------------------------------- |
-| Outbox not used             | Crash after commit can drop ES/WS/cache updates | `feature/comments-write-path`     |
-| Consumer colocated with API | Scale-out couples HTTP and workers              | Separate worker process later     |
-| `sync` mode in prod risk    | Create latency includes fit + emit              | Prefer `rabbit` in deploy         |
-| No DLQ / retry policy       | Poison image jobs can stall silently            | Queue ops in write-path / ops doc |
+| Gap                         | Impact                                                | Follow-up                     |
+| --------------------------- | ----------------------------------------------------- | ----------------------------- |
+| Consumer colocated with API | Scale-out couples HTTP, outbox poller, and RMQ worker | Separate worker process later |
+| Single-node cache & WS      | Multi-instance needs shared cache and WS fan-out      | Redis + Socket.IO adapter     |
+| `sync` mode in prod risk    | Create latency includes inline image fit              | Use `rabbit` in deploy        |
+| No DLQ / retry policy       | Poison image jobs can stall silently                  | Queue ops / DLQ policy        |
 
 Write SLA target for load tests: create p95 **&lt; 300 ms** (without counting client upload time) at peak, while list p95 stays within the read bars above.
 
@@ -137,38 +135,33 @@ Files do not need a separate 1M-object story if object storage + async fit are i
 
 ```text
 Client
-  │  GET list (≤25)     POST create (+ optional file)
+  │  GET list (≤25)     POST create / vote (+ optional file)
   ▼                     ▼
-API ──► list cache ──► Postgres (roots indexes)
+API ──► list cache ──► Postgres (roots indexes + comment_votes)
   │                     │
-  │                     ├─ TX: user + comment + txt
-  │                     └─ outbox (planned) / queue job
-  │                              │
-  │                              ▼
-  │                         RabbitMQ worker
-  │                              ├─ sharp fit → assets / object store
-  │                              ├─ ES index (comments_v2)
-  │                              ├─ cache version bump
-  │                              └─ Socket.IO broadcast
+  │                     ├─ TX: user + comment + txt + outbox_events
+  │                     ├─ OutboxPublisherService (1s) ──► WS comment.created + ES index
+  │                     └─ RabbitMQ / memory queue (process-image)
+  │                              └─ sharp fit → assets → cache bump + WS update
   ▼
-Elasticsearch ◄── search hydrate by id ──► Postgres
+Elasticsearch (with Postgres ILIKE fallback) ◄── hydrate by id ──► Postgres
 ```
 
 ---
 
 ## 5. Checklist vs the target
 
-| Requirement                  | Status  | Notes                                       |
-| ---------------------------- | ------- | ------------------------------------------- |
-| Paginated root list          | Done    | Cap 25; needs keyset under deep pages       |
-| Indexes for latest roots     | Done    | Partial indexes on roots                    |
-| List cache                   | Partial | Works single-node; Redis for multi-instance |
-| Async image / events         | Partial | Rabbit modes exist; outbox not wired        |
-| Search off primary list path | Done    | ES + hydrate                                |
-| Durable side-effect delivery | Todo    | `feature/comments-write-path`               |
-| Shared cache / WS scale-out  | Todo    | Redis (+ Socket.IO adapter)                 |
-| Object storage for files     | Todo    | Before multi-node / cloud-run               |
-| Measured proof               | Done    | `test/comments-load` → `docs/load-report`   |
+| Requirement                  | Status  | Notes                                                           |
+| ---------------------------- | ------- | --------------------------------------------------------------- |
+| Paginated root list          | Done    | Cap 25; keyset pagination recommended for deep pages at 1M      |
+| Indexes for latest roots     | Done    | Partial indexes on roots + unique index on `comment_votes`      |
+| List cache                   | Partial | Works single-node; Redis needed for multi-instance              |
+| Async image / events         | Done    | RabbitMQ/memory `process-image` + cache invalidation + WS       |
+| Search off primary list path | Done    | ES ngram/wildcard + hydrate + automatic Postgres ILIKE fallback |
+| Durable side-effect delivery | Done    | Transactional `outbox_events` + `OutboxPublisherService`        |
+| Shared cache / WS scale-out  | Todo    | Redis (+ Socket.IO adapter)                                     |
+| Object storage for files     | Todo    | Before multi-node / cloud-run                                   |
+| Measured proof               | Done    | `test/comments-load` → `docs/load-report`                       |
 
 ---
 
