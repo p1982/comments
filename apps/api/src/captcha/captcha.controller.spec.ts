@@ -12,7 +12,9 @@ import type { CaptchaService } from './captcha.service';
 describe('CaptchaController', () => {
   const captchaService = { getCaptcha: jest.fn() };
   const config = {
-    get: jest.fn((_key: string, fallback?: number) => fallback ?? 5 * 60 * 1000),
+    get: jest.fn((key: string, fallback?: number) =>
+      key === 'CAPTCHA_MAX_AGE_MS' ? (fallback ?? 5 * 60 * 1000) : undefined,
+    ),
   };
   const controller = new CaptchaController(
     captchaService as unknown as CaptchaService,
@@ -21,6 +23,7 @@ describe('CaptchaController', () => {
 
   it('sets the captcha cookie and sends the svg', () => {
     const response = {
+      setHeader: jest.fn(),
       cookie: jest.fn(),
       type: jest.fn().mockReturnThis(),
       send: jest.fn(),
@@ -30,9 +33,11 @@ describe('CaptchaController', () => {
     controller.getCaptcha(response as never);
 
     expect(config.get).toHaveBeenCalledWith('CAPTCHA_MAX_AGE_MS', 5 * 60 * 1000);
+    expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
     expect(response.cookie).toHaveBeenCalledWith(CookiesName.CAPTCHA, 'signed', {
       httpOnly: true,
       sameSite: 'lax',
+      secure: false,
       path: '/',
       maxAge: 5 * 60 * 1000,
     });
