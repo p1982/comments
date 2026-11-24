@@ -6,7 +6,8 @@
 
 **Comments** is a full-stack SPA for threaded commenting. Users leave messages with an SVG captcha, attach images or text files, vote on comments, bookmark favorites, browse a sortable paginated feed, search comments, and receive live updates via WebSocket. Backend is **NestJS + PostgreSQL**; frontend is **Next.js**.
 
-Repository: <https://github.com/p1982/comments>
+Repository: <https://github.com/p1982/comments>  
+Live Demo (Railway): <https://comments-front-production.up.railway.app/uk> (API docs: `/api/v1/docs`, GraphQL: `/graphql` — see [`docs/deploy.md`](deploy.md))
 
 ---
 
@@ -28,7 +29,7 @@ Repository: <https://github.com/p1982/comments>
 | 12  | **Auth** — signup / signin / refresh; JWT in httpOnly cookies, show/hide password, auto session restore on load                     | `POST /api/v1/auth/signup`, `/signin`, `/refresh`                     |
 | 13  | **Live updates** — `comment.created` and `comment.voted` Socket.IO events                                                           | `/socket.io`                                                          |
 | 14  | **REST API** — versioned under `/api/v1`                                                                                            | Swagger: `/api/v1/docs`                                               |
-| 15  | **GraphQL API** — queries `health`, `comments`, `commentChildren`, `searchComments`; mutations `createComment`, `voteComment`       | `/graphql` (playground in dev)                                        |
+| 15  | **GraphQL API** — queries `health`, `comments`, `commentChildren`, `searchComments`; mutations `createComment`, `voteComment`       | `/graphql` (Playground enabled unless `GRAPHQL_PLAYGROUND=false`)     |
 | 16  | **Captcha** — HMAC SVG, httpOnly cookie, 5 min TTL                                                                                  | `GET /api/v1/captcha`                                                 |
 | 17  | **i18n** — English and Ukrainian locales                                                                                            | Next.js App Router (`/en`, `/uk`)                                     |
 | 18  | **Health check** — database, GraphQL, WebSocket status                                                                              | `GET /api/v1/health`                                                  |
@@ -46,7 +47,7 @@ Repository: <https://github.com/p1982/comments>
 | `refresh_token` | `POST /auth/signup` or `/signin` | 7 days        | Rotates both tokens via `POST /auth/refresh`       |
 | `voter_id`      | `POST /comments/:id/vote`        | 1 year        | Identifies anonymous guests for 1-vote-per-comment |
 
-All cookies are **httpOnly, SameSite=Lax** — never accessible from JavaScript.
+All cookies are **httpOnly** — never accessible from JavaScript (`SameSite=Lax` on local HTTP; automatically `SameSite=None; Secure; Partitioned` over HTTPS cross-site origins such as Railway).
 
 ---
 
