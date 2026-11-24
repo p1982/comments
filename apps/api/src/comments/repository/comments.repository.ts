@@ -128,6 +128,30 @@ export class CommentsRepository {
     return new Map(rows.map((row) => [row.rootId, Number(row.count)]));
   }
 
+  async adjustVotesScore(
+    commentId: string,
+    delta: number,
+    manager: EntityManager,
+  ): Promise<number> {
+    const comments = manager.getRepository(CommentsEntity);
+    if (delta !== 0) {
+      await comments
+        .createQueryBuilder()
+        .update(CommentsEntity)
+        .set({ votesScore: () => '"votes_score" + :delta' })
+        .setParameter('delta', delta)
+        .where('id = :id', { id: commentId })
+        .execute();
+    }
+
+    const updated = await comments.findOne({
+      where: { id: commentId },
+      select: { id: true, votesScore: true },
+    });
+
+    return updated?.votesScore ?? 0;
+  }
+
   async create(comment: CreateCommentData, manager: EntityManager): Promise<CommentsEntity> {
     this.logger.debug(comment);
     const comments = manager.getRepository(CommentsEntity);

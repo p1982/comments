@@ -19,7 +19,7 @@ const HomePage = () => {
   const error = useCommentsStore((state) => state.error);
   const limit = useCommentsStore((state) => state.limit);
   const commentTarget = useCommentsStore((state) => state.commentTarget);
-  const { q, page } = useCommentsListQuery();
+  const { q, page, sort, order } = useCommentsListQuery();
 
   useCommentsSocket();
 
@@ -28,7 +28,7 @@ const HomePage = () => {
       if (q) {
         await searchComments({ q, page, limit });
       } else {
-        await fetchComments({ page });
+        await fetchComments({ page, sort, order });
       }
 
       const message = useCommentsStore.getState().error;
@@ -36,7 +36,7 @@ const HomePage = () => {
         toast.error(message, { toastId: q ? 'comments-search-error' : 'comments-error' });
       }
     })();
-  }, [fetchComments, limit, page, q, searchComments]);
+  }, [fetchComments, limit, order, page, q, searchComments, sort]);
 
   const showRootForm = commentTarget !== null && commentTarget.parentId === null;
 

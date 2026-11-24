@@ -46,6 +46,15 @@ describe('CommentsService', () => {
     findAll: jest.fn(),
     findByRootId: jest.fn(),
     countRepliesByRootIds: jest.fn(),
+    adjustVotesScore: jest.fn(),
+  };
+  const commentVotesRepository = {
+    findUserVotesByCommentIds: jest.fn(),
+    toggleVote: jest.fn(),
+  };
+  const commentsGateway = {
+    broadcastCommentCreated: jest.fn(),
+    broadcastCommentVoted: jest.fn(),
   };
   const configService = {
     getOrThrow: jest.fn(() => captchaSecret),
@@ -64,6 +73,8 @@ describe('CommentsService', () => {
     outboxRepository as never,
     commentQueueService,
     cache as never,
+    commentVotesRepository as never,
+    commentsGateway as never,
   );
 
   const setQueueMode = (mode: 'sync' | 'memory' | 'rabbit') => {
@@ -105,6 +116,7 @@ describe('CommentsService', () => {
     cache.set.mockResolvedValue(undefined);
     outboxRepository.insert.mockResolvedValue({ id: 'outbox-1' });
     commentsRepository.countRepliesByRootIds.mockResolvedValue(new Map());
+    commentVotesRepository.findUserVotesByCommentIds.mockResolvedValue(new Map());
   });
 
   it('creates a user inside the transaction when the email is unknown', async () => {
@@ -126,6 +138,8 @@ describe('CommentsService', () => {
       homepage: 'https://ann.example',
       parentId: null,
       repliesCount: 0,
+      votesScore: 0,
+      userVote: 0,
       attachments: [],
     });
     expect(usersRepository.findByEmail).toHaveBeenCalledWith('ann@example.com');
@@ -310,6 +324,8 @@ describe('CommentsService', () => {
           homepage: 'https://ann.example',
           parentId: null,
           repliesCount: 3,
+          votesScore: 0,
+          userVote: 0,
           attachments: [],
         },
       ],
@@ -392,6 +408,8 @@ describe('CommentsService', () => {
           homepage: 'https://ann.example',
           parentId: savedComment.id,
           repliesCount: 0,
+          votesScore: 0,
+          userVote: 0,
           attachments: [],
         },
       ],
@@ -687,5 +705,91 @@ describe('CommentsService', () => {
 
     expect(writeFile).not.toHaveBeenCalled();
     expect(attachmentsRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('overlays userVote on cached comments list when voterKey is provided', async () => {
+    const cached = {
+      data: [
+        {
+          id: savedComment.id,
+          text: 'Hello',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          fullName: 'Ann',
+          email: 'ann@example.com',
+          homepage: '',
+          parentId: null,
+          repliesCount: 0,
+          votesScore: 2,
+          userVote: 0 as const,
+          attachments: [],
+        },
+      ],
+      total: 1,
+      totalPages: 1,
+      status: 'success' as const,
+      message: 'Comments fetched successfully',
+    };
+    cache.get.mockResolvedValueOnce(0).mockResolvedValueOnce(cached);
+    commentVotesRepository.findUserVotesByCommentIds.mockResolvedValue(
+      new Map([[savedComment.id, 1 as const]]),
+    );
+
+    const result = await service.getComments(
+      { page: 1, limit: 25, sort: 'createdAt', order: 'desc' },
+      'user:user-1',
+    );
+
+    expect(result.data[0]?.userVote).toBe(1);
+    expect(result.data[0]?.votesScore).toBe(2);
+
+    cache.get.mockResolvedValueOnce(0).mockResolvedValueOnce({ ...cached, data: [] });
+    const emptyCached = await service.getComments(
+      { page: 1, limit: 25, sort: 'createdAt', order: 'desc' },
+      'user:user-1',
+    );
+    expect(emptyCached.data).toEqual([]);
+  });
+
+  it('toggles a vote in a transaction, invalidates list cache, and broadcasts websocket update', async () => {
+    commentsRepository.findById.mockResolvedValue(savedComment);
+    commentVotesRepository.toggleVote.mockResolvedValue({ delta: 1, userVote: 1 });
+    commentsRepository.adjustVotesScore.mockResolvedValue(4);
+
+    await expect(service.voteComment(savedComment.id, 1, 'user:user-1')).resolves.toEqual({
+      commentId: savedComment.id,
+      votesScore: 4,
+      userVote: 1,
+    });
+
+    expect(commentVotesRepository.toggleVote).toHaveBeenCalledWith(
+      savedComment.id,
+      'user:user-1',
+      1,
+      manager,
+    );
+    expect(commentsRepository.adjustVotesScore).toHaveBeenCalledWith(savedComment.id, 1, manager);
+    expect(cache.set).toHaveBeenCalledWith(COMMENTS_LIST_CACHE_VERSION_KEY, 1);
+    expect(commentsGateway.broadcastCommentVoted).toHaveBeenCalledWith({
+      commentId: savedComment.id,
+      rootId: savedComment.rootId,
+      votesScore: 4,
+    });
+  });
+
+  it('rejects voting on a missing comment with NotFoundException', async () => {
+    commentsRepository.findById.mockResolvedValue(null);
+
+    await expect(service.voteComment('missing', 1, 'guest:g1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('turns unexpected voting errors into InternalServerErrorException', async () => {
+    commentsRepository.findById.mockResolvedValue(savedComment);
+    dataSource.transaction.mockRejectedValueOnce(new Error('db down'));
+
+    await expect(service.voteComment(savedComment.id, -1, 'guest:g1')).rejects.toBeInstanceOf(
+      InternalServerErrorException,
+    );
   });
 });

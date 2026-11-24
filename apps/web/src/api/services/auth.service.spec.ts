@@ -32,4 +32,12 @@ describe('authService', () => {
     await expect(authService.signUp(body)).resolves.toBe(response);
     expect(post).toHaveBeenCalledWith(authEndpoint(ENDPOINTS.SIGNUP), body, undefined);
   });
+
+  it('posts to the refresh endpoint to validate and rotate auth cookies', async () => {
+    const response = { data: { status: 'success' } } as AxiosResponse;
+    const post = jest.spyOn(axiosInstance, 'post').mockResolvedValue(response);
+
+    await expect(authService.refresh()).resolves.toBe(response);
+    expect(post).toHaveBeenCalledWith(authEndpoint(ENDPOINTS.REFRESH), {}, undefined);
+  });
 });

@@ -2,6 +2,7 @@ import type { Client } from '@elastic/elasticsearch';
 import { ServiceUnavailableException } from '@nestjs/common';
 
 import type { CommentsRepository } from '@app/comments/repository/comments.repository';
+import type { CommentVotesRepository } from '@app/comments/repository/comment-votes.repository';
 import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 import {
   COMMENTS_INDEX,
@@ -19,6 +20,9 @@ describe('SearchService', () => {
     findBatchForIndex: jest.fn(),
     countRepliesByRootIds: jest.fn(),
   };
+  const commentVotesRepository = {
+    findUserVotesByCommentIds: jest.fn(),
+  };
 
   const elasticsearch = {
     indices: {
@@ -34,7 +38,11 @@ describe('SearchService', () => {
   };
 
   const createService = (client: Client | null = elasticsearch as unknown as Client) =>
-    new SearchService(commentsRepository as unknown as CommentsRepository, client);
+    new SearchService(
+      commentsRepository as unknown as CommentsRepository,
+      client,
+      commentVotesRepository as unknown as CommentVotesRepository,
+    );
 
   const sampleComment = {
     id: 'c1',
@@ -48,6 +56,7 @@ describe('SearchService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     commentsRepository.countRepliesByRootIds.mockResolvedValue(new Map());
+    commentVotesRepository.findUserVotesByCommentIds.mockResolvedValue(new Map());
   });
 
   it('skips index bootstrap when elasticsearch is unavailable', async () => {
@@ -242,15 +251,22 @@ describe('SearchService', () => {
   });
 
   it('falls back to PostgreSQL when elasticsearch client is missing', async () => {
-    commentsRepository.searchByText.mockResolvedValue([[sampleComment], 1]);
+    commentsRepository.searchByText.mockResolvedValue([[{ ...sampleComment, votesScore: 5 }], 1]);
+    commentsRepository.countRepliesByRootIds.mockResolvedValue(new Map([['c1', 2]]));
+    commentVotesRepository.findUserVotesByCommentIds.mockResolvedValue(new Map([['c1', 1]]));
     const service = createService(null);
 
-    const result = await service.search({ q: '8000014', page: 1, limit: 25 });
+    const result = await service.search({ q: '8000014', page: 1, limit: 25 }, 'user:u1');
 
     expect(commentsRepository.searchByText).toHaveBeenCalledWith('8000014', 1, 25);
     expect(result.total).toBe(1);
     expect(result.totalPages).toBe(1);
-    expect(result.data[0]?.id).toBe('c1');
+    expect(result.data[0]).toMatchObject({
+      id: 'c1',
+      repliesCount: 2,
+      votesScore: 5,
+      userVote: 1,
+    });
   });
 
   it('searches elasticsearch with ngram and wildcard for substring matching and hydrates by id order', async () => {
@@ -277,9 +293,11 @@ describe('SearchService', () => {
       attachments: [],
     };
     commentsRepository.findByIds.mockResolvedValue([commentA, commentB]);
+    commentsRepository.countRepliesByRootIds.mockResolvedValue(new Map([['c2', 3]]));
+    commentVotesRepository.findUserVotesByCommentIds.mockResolvedValue(new Map([['c2', -1]]));
     const service = createService();
 
-    const result = await service.search({ q: '14*', page: 2, limit: 10 });
+    const result = await service.search({ q: '14*', page: 2, limit: 10 }, 'user:u1');
 
     expect(elasticsearch.search).toHaveBeenCalledWith({
       index: COMMENTS_INDEX,

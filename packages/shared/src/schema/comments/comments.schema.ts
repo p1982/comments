@@ -24,6 +24,7 @@ export const commentsSchema = z.object({
   text: z
     .string()
     .trim()
+    .min(1, { message: 'Text is required' })
     .max(10000, 'Content is too long')
     .refine(isWellFormedHtml, {
       message: 'HTML tags must be closed and correctly nested',

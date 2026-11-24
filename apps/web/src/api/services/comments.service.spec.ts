@@ -80,4 +80,47 @@ describe('commentsService', () => {
 
     post.mockRestore();
   });
+
+  it('searches comments with query params', async () => {
+    const response = { data: { data: [] } } as AxiosResponse;
+    const get = jest.spyOn(axiosInstance, 'get').mockResolvedValue(response);
+
+    await expect(
+      commentsService.searchComments({ q: '8000014', page: 1, limit: 25 }),
+    ).resolves.toBe(response);
+    expect(get).toHaveBeenCalledWith(`${ENDPOINTS.COMMENTS}${ENDPOINTS.SEARCH}`, {
+      params: { q: '8000014', page: 1, limit: 25 },
+    });
+
+    get.mockRestore();
+  });
+
+  it('votes on a comment', async () => {
+    const response = { data: { commentId: 'c1', votesScore: 1, userVote: 1 } } as AxiosResponse;
+    const post = jest.spyOn(axiosInstance, 'post').mockResolvedValue(response);
+
+    await expect(commentsService.voteComment('c1', 1)).resolves.toBe(response);
+    expect(post).toHaveBeenCalledWith(
+      `${ENDPOINTS.COMMENTS}/c1${ENDPOINTS.VOTE}`,
+      { value: 1 },
+      undefined,
+    );
+
+    post.mockRestore();
+  });
+
+  it('loads captcha svg as text with cache-busting timestamp', async () => {
+    const response = { data: '<svg></svg>' } as AxiosResponse<string>;
+    const get = jest.spyOn(axiosInstance, 'get').mockResolvedValue(response);
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+
+    await expect(commentsService.getCaptcha()).resolves.toBe(response);
+    expect(get).toHaveBeenCalledWith(ENDPOINTS.CAPTCHA, {
+      responseType: 'text',
+      params: { t: 1_700_000_000_000 },
+    });
+
+    now.mockRestore();
+    get.mockRestore();
+  });
 });

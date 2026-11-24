@@ -12,6 +12,7 @@ import type { CommentsResult, CommentsSearchQuery } from '@comments/shared';
 import { toCommentResponse } from '@app/comments/dto/comment-response.dto';
 import { toPlainText } from '@app/comments/helpers/to-plain-text';
 import { CommentsRepository } from '@app/comments/repository/comments.repository';
+import { CommentVotesRepository } from '@app/comments/repository/comment-votes.repository';
 import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 import { ELASTICSEARCH_CLIENT } from '@app/infrastructure/elasticsearch/elasticsearch.constants';
 import {
@@ -34,6 +35,7 @@ export class SearchService implements OnModuleInit {
   constructor(
     private readonly commentsRepository: CommentsRepository,
     @Optional() @Inject(ELASTICSEARCH_CLIENT) private readonly elasticsearch: Client | null,
+    private readonly commentVotesRepository: CommentVotesRepository,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -170,7 +172,10 @@ export class SearchService implements OnModuleInit {
     }
   }
 
-  async search(query: CommentsSearchQuery): Promise<CommentsResult> {
+  async search(
+    query: CommentsSearchQuery,
+    voterKey: string | null = null,
+  ): Promise<CommentsResult> {
     const needle = toPlainText(query.q);
     if (!needle) {
       return {
@@ -183,7 +188,7 @@ export class SearchService implements OnModuleInit {
     }
 
     if (!this.elasticsearch) {
-      return await this.searchInDatabase(needle, query.page, query.limit);
+      return await this.searchInDatabase(needle, query.page, query.limit, voterKey);
     }
 
     try {
@@ -223,15 +228,26 @@ export class SearchService implements OnModuleInit {
         typeof result.hits.total === 'number' ? result.hits.total : (result.hits.total?.value ?? 0);
 
       const comments = await this.commentsRepository.findByIds(ids);
-      const replyCounts = await this.commentsRepository.countRepliesByRootIds(
-        comments.filter((comment) => comment.parentId === null).map((comment) => comment.id),
-      );
+      const [replyCounts, userVotes] = await Promise.all([
+        this.commentsRepository.countRepliesByRootIds(
+          comments.filter((comment) => comment.parentId === null).map((comment) => comment.id),
+        ),
+        this.commentVotesRepository.findUserVotesByCommentIds(
+          comments.map((comment) => comment.id),
+          voterKey,
+        ),
+      ]);
 
       this.logger.debug(`search q=${query.q} hits=${String(total)}`);
 
       return {
         data: comments.map((comment) =>
-          toCommentResponse(comment, comment.user, replyCounts.get(comment.id) ?? 0),
+          toCommentResponse(
+            comment,
+            comment.user,
+            replyCounts.get(comment.id) ?? 0,
+            userVotes.get(comment.id) ?? 0,
+          ),
         ),
         total,
         totalPages: total === 0 ? 0 : Math.ceil(total / query.limit),
@@ -242,7 +258,7 @@ export class SearchService implements OnModuleInit {
       this.logger.warn(
         `Elasticsearch search failed, falling back to PostgreSQL: ${formatError(error)}`,
       );
-      return await this.searchInDatabase(needle, query.page, query.limit);
+      return await this.searchInDatabase(needle, query.page, query.limit, voterKey);
     }
   }
 
@@ -250,16 +266,28 @@ export class SearchService implements OnModuleInit {
     needle: string,
     page: number,
     limit: number,
+    voterKey: string | null = null,
   ): Promise<CommentsResult> {
     try {
       const [comments, total] = await this.commentsRepository.searchByText(needle, page, limit);
-      const replyCounts = await this.commentsRepository.countRepliesByRootIds(
-        comments.filter((comment) => comment.parentId === null).map((comment) => comment.id),
-      );
+      const [replyCounts, userVotes] = await Promise.all([
+        this.commentsRepository.countRepliesByRootIds(
+          comments.filter((comment) => comment.parentId === null).map((comment) => comment.id),
+        ),
+        this.commentVotesRepository.findUserVotesByCommentIds(
+          comments.map((comment) => comment.id),
+          voterKey,
+        ),
+      ]);
       this.logger.debug(`db fallback search q=${needle} hits=${String(total)}`);
       return {
         data: comments.map((comment) =>
-          toCommentResponse(comment, comment.user, replyCounts.get(comment.id) ?? 0),
+          toCommentResponse(
+            comment,
+            comment.user,
+            replyCounts.get(comment.id) ?? 0,
+            userVotes.get(comment.id) ?? 0,
+          ),
         ),
         total,
         totalPages: total === 0 ? 0 : Math.ceil(total / limit),

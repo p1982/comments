@@ -1,4 +1,4 @@
-import type { AxiosInstance, AxiosRequestHeaders, AxiosResponse } from 'axios';
+import type { AxiosInstance, AxiosRequestHeaders, AxiosResponse, ResponseType } from 'axios';
 
 type RequestParams = Record<string, string | number | boolean | undefined>;
 type RequestHeaders = AxiosRequestHeaders | Record<string, string>;
@@ -13,6 +13,7 @@ abstract class AbstractApiServices {
     options?: {
       params?: RequestParams;
       headers?: RequestHeaders;
+      responseType?: ResponseType;
     },
   ): Promise<AxiosResponse<T>> {
     return await this.apiClient.get(url, options);

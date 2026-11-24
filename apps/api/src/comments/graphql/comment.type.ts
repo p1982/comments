@@ -19,7 +19,16 @@ export class CommentType {
   @Field() homepage!: string;
   @Field(() => String, { nullable: true }) parentId!: string | null;
   @Field(() => Int) repliesCount!: number;
+  @Field(() => Int) votesScore!: number;
+  @Field(() => Int) userVote!: number;
   @Field(() => [CommentAttachmentType]) attachments!: CommentAttachmentType[];
+}
+
+@ObjectType()
+export class CommentVoteResultType {
+  @Field() commentId!: string;
+  @Field(() => Int) votesScore!: number;
+  @Field(() => Int) userVote!: number;
 }
 
 @ObjectType()

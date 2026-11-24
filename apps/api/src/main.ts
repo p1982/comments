@@ -17,12 +17,23 @@ import { COMMENT_QUEUE_NAME } from './comments/comments.constants';
 import { resolveCommentQueueMode } from './comments/queue/comment-job';
 import { mergeOpenApiExtras } from './swagger/openapi-extras';
 
+const resolvePort = (value: string | number | undefined): number | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(String(value).trim());
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+};
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 
   const apiVersion = config.get<string>('API_VERSION', '1');
-  const port = config.get<number>('API_PORT', 4000);
+  const port =
+    resolvePort(config.get<string | number>('API_PORT')) ??
+    resolvePort(config.get<string | number>('PORT')) ??
+    3001;
   const apiBaseUrl = `http://localhost:${String(port)}`;
   const globalPrefix = `api/v${apiVersion}`;
 

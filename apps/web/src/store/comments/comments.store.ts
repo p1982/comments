@@ -9,7 +9,10 @@ import type {
   CommentsListQuery,
   CommentsSchema,
   CommentsSearchQuery,
+  CommentVotedEventPayload,
+  CommentVoteValue,
   GetCommentsQuery,
+  UserVoteValue,
 } from '@comments/shared';
 import commentsService from '@/api/services/comments.service';
 import { reduceComments } from '@/utils';
@@ -24,6 +27,8 @@ interface CommentsState {
   comments: Record<string, CommentResponse>;
   commentsIds: string[];
   childrenComments: Record<string, ChildrenCommentsState>;
+  bookmarkedComments: Record<string, CommentResponse>;
+  showBookmarksOnly: boolean;
   page: number;
   limit: number;
   sort: CommentSortField;
@@ -34,6 +39,7 @@ interface CommentsState {
   comment: CommentResponse | null;
   isLoading: boolean;
   loadingChildrenIds: Record<string, boolean>;
+  votingCommentIds: Record<string, boolean>;
   expandedRootIds: Record<string, boolean>;
   error: string | null;
   commentTarget: CommentTarget | null;
@@ -42,15 +48,20 @@ interface CommentsState {
   setRootExpanded: (rootId: string, expanded: boolean) => void;
   createComment: (comment: CommentsSchema, image?: File, textFile?: File) => Promise<void>;
   openRootForm: () => void;
-  openReplyForm: (parentId: string, rootId: string) => void;
+  openReplyForm: (parentId: string, rootId: string, initialText?: string) => void;
   closeCommentForm: () => void;
+  toggleBookmark: (comment: CommentResponse) => boolean;
+  setShowBookmarksOnly: (show: boolean) => void;
   applyRemoteComment: (comment: CommentResponse) => void;
+  applyRemoteVote: (payload: CommentVotedEventPayload) => void;
+  voteComment: (commentId: string, rootId: string, value: CommentVoteValue) => Promise<void>;
   searchComments: (query: CommentsSearchQuery) => Promise<void>;
 }
 
 interface CommentTarget {
   parentId: string | null;
   rootId: string | null;
+  initialText?: string;
 }
 
 const extractErrorMessage = (error: unknown, fallback: string): string => {
@@ -74,8 +85,11 @@ const useCommentsStore = create<CommentsState>()(
     (set, get) => ({
       comments: {},
       childrenComments: {},
+      bookmarkedComments: {},
+      showBookmarksOnly: false,
       isLoading: false,
       loadingChildrenIds: {},
+      votingCommentIds: {},
       expandedRootIds: {},
       error: null,
       commentsIds: [],
@@ -200,11 +214,38 @@ const useCommentsStore = create<CommentsState>()(
       openRootForm: () => {
         set({ commentTarget: { parentId: null, rootId: null } });
       },
-      openReplyForm: (parentId: string, rootId: string) => {
-        set({ commentTarget: { parentId, rootId } });
+      openReplyForm: (parentId: string, rootId: string, initialText?: string) => {
+        set({
+          commentTarget: {
+            parentId,
+            rootId,
+            ...(initialText ? { initialText } : {}),
+          },
+        });
       },
       closeCommentForm: () => {
         set({ commentTarget: null, error: null });
+      },
+      toggleBookmark: (comment: CommentResponse) => {
+        const exists = Boolean(get().bookmarkedComments[comment.id]);
+        if (exists) {
+          set((state) => ({
+            bookmarkedComments: Object.fromEntries(
+              Object.entries(state.bookmarkedComments).filter(([id]) => id !== comment.id),
+            ),
+          }));
+          return false;
+        }
+        set((state) => ({
+          bookmarkedComments: {
+            ...state.bookmarkedComments,
+            [comment.id]: comment,
+          },
+        }));
+        return true;
+      },
+      setShowBookmarksOnly: (show: boolean) => {
+        set({ showBookmarksOnly: show });
       },
       applyRemoteComment: (comment: CommentResponse) => {
         const state = get();
@@ -304,8 +345,129 @@ const useCommentsStore = create<CommentsState>()(
             : {}),
         });
       },
+      applyRemoteVote: ({ commentId, rootId, votesScore }: CommentVotedEventPayload) => {
+        set((state) => {
+          const topLevel = state.comments[commentId];
+          const thread = state.childrenComments[rootId];
+          const nested = thread?.comments[commentId];
+          const bookmarked = state.bookmarkedComments[commentId];
+
+          if (!topLevel && !nested && !bookmarked) {
+            return state;
+          }
+
+          return {
+            ...(topLevel
+              ? {
+                  comments: {
+                    ...state.comments,
+                    [commentId]: { ...topLevel, votesScore },
+                  },
+                }
+              : {}),
+            ...(thread && nested
+              ? {
+                  childrenComments: {
+                    ...state.childrenComments,
+                    [rootId]: {
+                      ...thread,
+                      comments: {
+                        ...thread.comments,
+                        [commentId]: { ...nested, votesScore },
+                      },
+                    },
+                  },
+                }
+              : {}),
+            ...(bookmarked
+              ? {
+                  bookmarkedComments: {
+                    ...state.bookmarkedComments,
+                    [commentId]: { ...bookmarked, votesScore },
+                  },
+                }
+              : {}),
+          };
+        });
+      },
+      voteComment: async (commentId: string, rootId: string, value: CommentVoteValue) => {
+        const snapshot = get();
+        const existing =
+          snapshot.comments[commentId] ??
+          snapshot.childrenComments[rootId]?.comments[commentId] ??
+          snapshot.bookmarkedComments[commentId];
+        if (!existing || snapshot.votingCommentIds[commentId]) {
+          return;
+        }
+
+        const prevScore = existing.votesScore ?? 0;
+        const prevVote: UserVoteValue = existing.userVote ?? 0;
+        const nextVote: UserVoteValue = prevVote === value ? 0 : value;
+        const nextScore = prevScore + (nextVote - prevVote);
+
+        const patchVote = (votesScore: number, userVote: UserVoteValue) => {
+          set((state) => {
+            const topLevel = state.comments[commentId];
+            const thread = state.childrenComments[rootId];
+            const nested = thread?.comments[commentId];
+            const bookmarked = state.bookmarkedComments[commentId];
+
+            return {
+              ...(topLevel
+                ? {
+                    comments: {
+                      ...state.comments,
+                      [commentId]: { ...topLevel, votesScore, userVote },
+                    },
+                  }
+                : {}),
+              ...(thread && nested
+                ? {
+                    childrenComments: {
+                      ...state.childrenComments,
+                      [rootId]: {
+                        ...thread,
+                        comments: {
+                          ...thread.comments,
+                          [commentId]: { ...nested, votesScore, userVote },
+                        },
+                      },
+                    },
+                  }
+                : {}),
+              ...(bookmarked
+                ? {
+                    bookmarkedComments: {
+                      ...state.bookmarkedComments,
+                      [commentId]: { ...bookmarked, votesScore, userVote },
+                    },
+                  }
+                : {}),
+            };
+          });
+        };
+
+        set((state) => ({
+          votingCommentIds: { ...state.votingCommentIds, [commentId]: true },
+          error: null,
+        }));
+        patchVote(nextScore, nextVote);
+
+        try {
+          const { data } = await commentsService.voteComment(commentId, value);
+          patchVote(data.votesScore, data.userVote);
+        } catch (error) {
+          patchVote(prevScore, prevVote);
+          const message = extractErrorMessage(error, 'Failed to vote comment');
+          set({ error: message });
+        } finally {
+          set((state) => ({
+            votingCommentIds: omitKey(state.votingCommentIds, commentId),
+          }));
+        }
+      },
       searchComments: async (query: CommentsSearchQuery) => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, error: null, showBookmarksOnly: false });
         try {
           const { data } = await commentsService.searchComments(query);
           const [comments, commentsIds] = reduceComments(data.data);
@@ -348,6 +510,7 @@ const useCommentsStore = create<CommentsState>()(
         totalPages: state.totalPages,
         comment: state.comment,
         childrenComments: state.childrenComments,
+        bookmarkedComments: state.bookmarkedComments,
       }),
     },
   ),

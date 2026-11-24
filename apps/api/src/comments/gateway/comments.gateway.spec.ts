@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 
 import type { CommentResponse } from '@comments/shared';
-import { WS_COMMENT_CREATED } from '@comments/shared';
+import { WS_COMMENT_CREATED, WS_COMMENT_VOTED } from '@comments/shared';
 
 import { CommentsGateway } from './comments.gateway';
 
@@ -25,6 +25,14 @@ describe('CommentsGateway', () => {
     gateway.broadcastCommentCreated(comment);
 
     expect(emit).toHaveBeenCalledWith(WS_COMMENT_CREATED, comment);
+
+    const votePayload = { commentId: comment.id, rootId: comment.id, votesScore: 2 };
+    gateway.broadcastCommentVoted(votePayload);
+    expect(emit).toHaveBeenCalledWith(WS_COMMENT_VOTED, votePayload);
+
+    const uninitialized = new CommentsGateway();
+    expect(() => uninitialized.broadcastCommentCreated(comment)).not.toThrow();
+    expect(() => uninitialized.broadcastCommentVoted(votePayload)).not.toThrow();
   });
 
   it('logs when a client connects', () => {

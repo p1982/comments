@@ -6,6 +6,8 @@ import {
   type CommentsResult,
   type CommentsSchema,
   type CommentsSearchQuery,
+  type CommentVoteResult,
+  type CommentVoteValue,
   type CreateCommentResponse,
 } from '@comments/shared';
 
@@ -56,6 +58,20 @@ class CommentsServices extends AbstractApiServices {
         page: query.page,
         limit: query.limit,
       },
+    });
+  }
+
+  voteComment(
+    commentId: string,
+    value: CommentVoteValue,
+  ): Promise<AxiosResponse<CommentVoteResult>> {
+    return this.post(`${ENDPOINTS.COMMENTS}/${commentId}${ENDPOINTS.VOTE}`, { value });
+  }
+
+  getCaptcha(): Promise<AxiosResponse<string>> {
+    return this.get<string>(ENDPOINTS.CAPTCHA, {
+      responseType: 'text',
+      params: { t: Date.now() },
     });
   }
 }
