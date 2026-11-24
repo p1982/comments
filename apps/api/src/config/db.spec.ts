@@ -72,6 +72,6 @@ describe('database config', () => {
       database: 'comments',
       synchronize: false,
     });
-    expect(options.entities).toHaveLength(4);
+    expect(options.entities).toHaveLength(5);
   });
 });

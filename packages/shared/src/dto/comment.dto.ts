@@ -1,4 +1,5 @@
 import type { CommentsSchema } from '../schema/comments/comments.schema.js';
+import type { UserVoteValue } from '../schema/comments/comment-vote.schema.js';
 
 export type CreateCommentRequest = CommentsSchema;
 
@@ -33,7 +34,22 @@ export interface CommentResponse {
   email: string;
   homepage: string;
   parentId: string | null;
+  repliesCount?: number;
+  votesScore?: number;
+  userVote?: UserVoteValue;
   attachments: CommentAttachments[];
+}
+
+export interface CommentVoteResult {
+  commentId: string;
+  votesScore: number;
+  userVote: UserVoteValue;
+}
+
+export interface CommentVotedEventPayload {
+  commentId: string;
+  rootId: string;
+  votesScore: number;
 }
 
 export interface CommentsResult {

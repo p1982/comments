@@ -5,6 +5,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json apps/api/
+COPY apps/e2e/package.json apps/e2e/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 COPY tools/apollo-playground-plugin tools/apollo-playground-plugin
@@ -16,9 +17,13 @@ WORKDIR /app
 
 ARG API_BASE_URL=http://localhost:3001
 ARG API_VERSION=1
+ARG NEXT_PUBLIC_API_URL=
+ARG NEXT_PUBLIC_GRAPHQL_URL=
 
 ENV API_BASE_URL=$API_BASE_URL
 ENV API_VERSION=$API_VERSION
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_GRAPHQL_URL=$NEXT_PUBLIC_GRAPHQL_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 

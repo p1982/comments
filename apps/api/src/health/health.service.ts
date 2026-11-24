@@ -69,7 +69,7 @@ export class HealthService {
 
   private async probeGraphqlOverHttp(): Promise<DependencyStatus> {
     try {
-      const port = process.env['PORT'] ?? '3001';
+      const port = process.env['API_PORT'] ?? process.env['PORT'] ?? '3001';
       const response = await fetch(`http://127.0.0.1:${port}/graphql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

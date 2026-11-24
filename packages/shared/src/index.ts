@@ -9,6 +9,8 @@ export {
   commentSortFields,
   commentSortOrders,
   type CommentResponse,
+  type CommentVoteResult,
+  type CommentVotedEventPayload,
   type CommentAttachments,
   type CommentSortField,
   type CommentSortOrder,

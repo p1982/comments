@@ -1,5 +1,6 @@
 'use client';
 
+import Alert from '@mui/material/Alert';
 import React, { useEffect } from 'react';
 import { toast } from 'react-toastify';
 
@@ -15,9 +16,10 @@ const HomePage = () => {
   const searchComments = useCommentsStore((state) => state.searchComments);
   const commentsIds = useCommentsStore((state) => state.commentsIds);
   const isLoading = useCommentsStore((state) => state.isLoading);
+  const error = useCommentsStore((state) => state.error);
   const limit = useCommentsStore((state) => state.limit);
   const commentTarget = useCommentsStore((state) => state.commentTarget);
-  const { q, page } = useCommentsListQuery();
+  const { q, page, sort, order } = useCommentsListQuery();
 
   useCommentsSocket();
 
@@ -26,7 +28,7 @@ const HomePage = () => {
       if (q) {
         await searchComments({ q, page, limit });
       } else {
-        await fetchComments({ page });
+        await fetchComments({ page, sort, order });
       }
 
       const message = useCommentsStore.getState().error;
@@ -34,7 +36,7 @@ const HomePage = () => {
         toast.error(message, { toastId: q ? 'comments-search-error' : 'comments-error' });
       }
     })();
-  }, [fetchComments, limit, page, q, searchComments]);
+  }, [fetchComments, limit, order, page, q, searchComments, sort]);
 
   const showRootForm = commentTarget !== null && commentTarget.parentId === null;
 
@@ -45,6 +47,11 @@ const HomePage = () => {
   return (
     <main data-testid="home-page">
       {showRootForm && <CommentForm key="root" />}
+      {error && !showRootForm && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
       <CommentsList commentsIds={commentsIds} />
     </main>
   );

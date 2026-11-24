@@ -23,6 +23,10 @@ class AuthService extends AbstractApiServices {
   signUp(body: AuthSignUpRequest): Promise<AxiosResponse<AuthStatusResponse>> {
     return this.post(authEndpoint(ENDPOINTS.SIGNUP), body);
   }
+
+  refresh(): Promise<AxiosResponse<AuthStatusResponse>> {
+    return this.post(authEndpoint(ENDPOINTS.REFRESH), {});
+  }
 }
 
 export default new AuthService();

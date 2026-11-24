@@ -9,13 +9,21 @@ interface PaginationProps {
 
 export default function PaginationOutlined({ totalPages, page, onPageChange }: PaginationProps) {
   return (
-    <Stack spacing={2} data-testid="comments-pagination">
+    <Stack spacing={2} sx={{ alignItems: 'center' }} data-testid="comments-pagination">
       <Pagination
         page={page}
         count={totalPages}
         onChange={(_event, value) => onPageChange(value)}
         variant="outlined"
         color="primary"
+        siblingCount={1}
+        boundaryCount={1}
+        sx={{
+          '& .MuiPagination-ul': {
+            justifyContent: 'center',
+            rowGap: 1,
+          },
+        }}
       />
     </Stack>
   );

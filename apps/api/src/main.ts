@@ -8,6 +8,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 import { CookiesName } from '@comments/shared';
 
@@ -16,20 +17,34 @@ import { COMMENT_QUEUE_NAME } from './comments/comments.constants';
 import { resolveCommentQueueMode } from './comments/queue/comment-job';
 import { mergeOpenApiExtras } from './swagger/openapi-extras';
 
+const resolvePort = (value: string | number | undefined): number | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(String(value).trim());
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+};
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 
   const apiVersion = config.get<string>('API_VERSION', '1');
-  const port = config.get<number>('PORT', 3000);
+  const port =
+    resolvePort(config.get<string | number>('API_PORT')) ??
+    resolvePort(config.get<string | number>('PORT')) ??
+    3001;
   const apiBaseUrl = `http://localhost:${String(port)}`;
   const globalPrefix = `api/v${apiVersion}`;
 
   app.setGlobalPrefix(globalPrefix);
+
   app.enableCors({
     origin: config.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
     credentials: true,
   });
+
+  app.useWebSocketAdapter(new IoAdapter(app));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -37,7 +52,9 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
   app.use(cookieParser());
+
   app.useStaticAssets(join(process.cwd(), 'apps', 'api', 'assets'), { prefix: '/assets/' });
 
   app.use(

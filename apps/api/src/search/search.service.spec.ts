@@ -1,28 +1,62 @@
 import type { Client } from '@elastic/elasticsearch';
+import { ServiceUnavailableException } from '@nestjs/common';
 
 import type { CommentsRepository } from '@app/comments/repository/comments.repository';
+import type { CommentVotesRepository } from '@app/comments/repository/comment-votes.repository';
+import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
+import {
+  COMMENTS_INDEX,
+  COMMENTS_INDEX_MAPPINGS,
+  COMMENTS_INDEX_SETTINGS,
+  COMMENTS_REINDEX_BATCH_SIZE,
+} from '@app/search/search.constants';
 
 import { SearchService } from './search.service';
 
 describe('SearchService', () => {
   const commentsRepository = {
     findByIds: jest.fn(),
+    searchByText: jest.fn(),
+    findBatchForIndex: jest.fn(),
+    countRepliesByRootIds: jest.fn(),
+  };
+  const commentVotesRepository = {
+    findUserVotesByCommentIds: jest.fn(),
   };
 
   const elasticsearch = {
     indices: {
       exists: jest.fn(),
       create: jest.fn(),
+      delete: jest.fn(),
+      refresh: jest.fn(),
     },
+    count: jest.fn(),
+    bulk: jest.fn(),
     index: jest.fn(),
     search: jest.fn(),
   };
 
   const createService = (client: Client | null = elasticsearch as unknown as Client) =>
-    new SearchService(commentsRepository as unknown as CommentsRepository, client);
+    new SearchService(
+      commentsRepository as unknown as CommentsRepository,
+      client,
+      commentVotesRepository as unknown as CommentVotesRepository,
+    );
+
+  const sampleComment = {
+    id: 'c1',
+    text: 'load comment 8000014',
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    parentId: null,
+    user: { fullName: 'LoadUser8000014', email: 'load@example.com', homepage: null },
+    attachments: [],
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    commentsRepository.countRepliesByRootIds.mockResolvedValue(new Map());
+    commentVotesRepository.findUserVotesByCommentIds.mockResolvedValue(new Map());
   });
 
   it('skips index bootstrap when elasticsearch is unavailable', async () => {
@@ -32,26 +66,111 @@ describe('SearchService', () => {
     expect(elasticsearch.indices.exists).not.toHaveBeenCalled();
   });
 
-  it('creates the comments index when it does not exist', async () => {
-    elasticsearch.indices.exists.mockResolvedValue(false);
+  it('creates the comments index with ngram settings and auto-reindexes when missing', async () => {
+    elasticsearch.indices.exists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     elasticsearch.indices.create.mockResolvedValue({});
+    commentsRepository.findBatchForIndex.mockResolvedValue([sampleComment]);
+    elasticsearch.bulk.mockResolvedValue({ errors: false });
+    elasticsearch.indices.refresh.mockResolvedValue({});
     const service = createService();
 
     await service.onModuleInit();
 
-    expect(elasticsearch.indices.exists).toHaveBeenCalledWith({ index: 'comments_v2' });
-    expect(elasticsearch.indices.create).toHaveBeenCalledWith(
-      expect.objectContaining({ index: 'comments_v2' }),
-    );
+    expect(elasticsearch.indices.exists).toHaveBeenCalledWith({ index: COMMENTS_INDEX });
+    expect(elasticsearch.indices.create).toHaveBeenCalledWith({
+      index: COMMENTS_INDEX,
+      settings: COMMENTS_INDEX_SETTINGS,
+      mappings: COMMENTS_INDEX_MAPPINGS,
+    });
+    expect(elasticsearch.bulk).toHaveBeenCalledWith({
+      operations: [
+        { index: { _index: COMMENTS_INDEX, _id: 'c1' } },
+        {
+          id: 'c1',
+          parentId: null,
+          username: 'LoadUser8000014',
+          plainText: 'load comment 8000014',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      refresh: false,
+    });
+    expect(elasticsearch.indices.refresh).toHaveBeenCalledWith({ index: COMMENTS_INDEX });
   });
 
-  it('does not recreate an existing comments index', async () => {
+  it('does not recreate or reindex when comments index already has documents', async () => {
     elasticsearch.indices.exists.mockResolvedValue(true);
+    elasticsearch.count.mockResolvedValue({ count: 10 });
     const service = createService();
 
     await service.onModuleInit();
 
     expect(elasticsearch.indices.create).not.toHaveBeenCalled();
+    expect(commentsRepository.findBatchForIndex).not.toHaveBeenCalled();
+  });
+
+  it('auto-reindexes when an existing comments index is empty', async () => {
+    elasticsearch.indices.exists.mockResolvedValue(true);
+    elasticsearch.count.mockResolvedValue({ count: 0 });
+    commentsRepository.findBatchForIndex.mockResolvedValue([]);
+    const service = createService();
+
+    await service.onModuleInit();
+
+    expect(commentsRepository.findBatchForIndex).toHaveBeenCalledWith(
+      0,
+      COMMENTS_REINDEX_BATCH_SIZE,
+    );
+    expect(elasticsearch.indices.refresh).not.toHaveBeenCalled();
+  });
+
+  it('swallows errors during index bootstrap', async () => {
+    elasticsearch.indices.exists.mockRejectedValue(new Error('ECONNREFUSED'));
+    const service = createService();
+
+    await expect(service.onModuleInit()).resolves.toBeUndefined();
+  });
+
+  it('recreates the index and bulk-reindexes batches when recreate is requested', async () => {
+    const emptyTextComment = { ...sampleComment, id: 'c-empty', text: '<i></i>' };
+    const fullBatch = Array.from({ length: COMMENTS_REINDEX_BATCH_SIZE }, (_, idx) => ({
+      ...sampleComment,
+      id: `c-${String(idx)}`,
+    }));
+
+    elasticsearch.indices.exists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    elasticsearch.indices.delete.mockResolvedValue({});
+    elasticsearch.indices.create.mockResolvedValue({});
+    commentsRepository.findBatchForIndex
+      .mockResolvedValueOnce(fullBatch)
+      .mockResolvedValueOnce([emptyTextComment]);
+    elasticsearch.bulk.mockResolvedValue({ errors: false });
+    elasticsearch.indices.refresh.mockResolvedValue({});
+
+    const service = createService();
+    const count = await service.reindexAll({ recreate: true });
+
+    expect(count).toBe(COMMENTS_REINDEX_BATCH_SIZE);
+    expect(elasticsearch.indices.delete).toHaveBeenCalledWith({ index: COMMENTS_INDEX });
+    expect(elasticsearch.indices.create).toHaveBeenCalledTimes(1);
+    expect(commentsRepository.findBatchForIndex).toHaveBeenNthCalledWith(
+      1,
+      0,
+      COMMENTS_REINDEX_BATCH_SIZE,
+    );
+    expect(commentsRepository.findBatchForIndex).toHaveBeenNthCalledWith(
+      2,
+      COMMENTS_REINDEX_BATCH_SIZE,
+      COMMENTS_REINDEX_BATCH_SIZE,
+    );
+    expect(elasticsearch.bulk).toHaveBeenCalledTimes(1);
+    expect(elasticsearch.indices.refresh).toHaveBeenCalledWith({ index: COMMENTS_INDEX });
+  });
+
+  it('returns 0 from reindexAll when elasticsearch client is missing', async () => {
+    const service = createService(null);
+
+    await expect(service.reindexAll()).resolves.toBe(0);
   });
 
   it('indexes a comment document', async () => {
@@ -67,7 +186,7 @@ describe('SearchService', () => {
     });
 
     expect(elasticsearch.index).toHaveBeenCalledWith({
-      index: 'comments_v2',
+      index: COMMENTS_INDEX,
       id: 'c1',
       document: {
         id: 'c1',
@@ -117,19 +236,40 @@ describe('SearchService', () => {
     expect(elasticsearch.index).not.toHaveBeenCalled();
   });
 
-  it('returns an empty page when search has no needle or client', async () => {
-    const service = createService(null);
+  it('returns an empty page when search has no needle', async () => {
+    const service = createService();
 
-    await expect(service.search({ q: 'hello', page: 1, limit: 25 })).resolves.toEqual({
+    await expect(service.search({ q: '<i></i>', page: 1, limit: 25 })).resolves.toEqual({
       data: [],
       total: 0,
       totalPages: 0,
       status: 'success',
       message: 'Comments fetched successfully',
     });
+    expect(elasticsearch.search).not.toHaveBeenCalled();
+    expect(commentsRepository.searchByText).not.toHaveBeenCalled();
   });
 
-  it('searches elasticsearch and hydrates comments by id order', async () => {
+  it('falls back to PostgreSQL when elasticsearch client is missing', async () => {
+    commentsRepository.searchByText.mockResolvedValue([[{ ...sampleComment, votesScore: 5 }], 1]);
+    commentsRepository.countRepliesByRootIds.mockResolvedValue(new Map([['c1', 2]]));
+    commentVotesRepository.findUserVotesByCommentIds.mockResolvedValue(new Map([['c1', 1]]));
+    const service = createService(null);
+
+    const result = await service.search({ q: '8000014', page: 1, limit: 25 }, 'user:u1');
+
+    expect(commentsRepository.searchByText).toHaveBeenCalledWith('8000014', 1, 25);
+    expect(result.total).toBe(1);
+    expect(result.totalPages).toBe(1);
+    expect(result.data[0]).toMatchObject({
+      id: 'c1',
+      repliesCount: 2,
+      votesScore: 5,
+      userVote: 1,
+    });
+  });
+
+  it('searches elasticsearch with ngram and wildcard for substring matching and hydrates by id order', async () => {
     elasticsearch.search.mockResolvedValue({
       hits: {
         total: { value: 2 },
@@ -153,20 +293,32 @@ describe('SearchService', () => {
       attachments: [],
     };
     commentsRepository.findByIds.mockResolvedValue([commentA, commentB]);
+    commentsRepository.countRepliesByRootIds.mockResolvedValue(new Map([['c2', 3]]));
+    commentVotesRepository.findUserVotesByCommentIds.mockResolvedValue(new Map([['c2', -1]]));
     const service = createService();
 
-    const result = await service.search({ q: 'Hello', page: 2, limit: 10 });
+    const result = await service.search({ q: '14*', page: 2, limit: 10 }, 'user:u1');
 
-    expect(elasticsearch.search).toHaveBeenCalledWith(
-      expect.objectContaining({
-        index: 'comments_v2',
-        from: 10,
-        size: 10,
-        query: {
-          multi_match: { query: 'hello', fields: ['plainText', 'username'] },
+    expect(elasticsearch.search).toHaveBeenCalledWith({
+      index: COMMENTS_INDEX,
+      from: 10,
+      size: 10,
+      query: {
+        bool: {
+          should: [
+            {
+              multi_match: {
+                query: '14*',
+                fields: ['plainText^3', 'username^3', 'plainText.ngram', 'username.ngram'],
+              },
+            },
+            { wildcard: { plainText: { value: '*14\\**', case_insensitive: true } } },
+            { wildcard: { username: { value: '*14\\**', case_insensitive: true } } },
+          ],
+          minimum_should_match: 1,
         },
-      }),
-    );
+      },
+    });
     expect(commentsRepository.findByIds).toHaveBeenCalledWith(['c2', 'c1']);
     expect(result.total).toBe(2);
     expect(result.totalPages).toBe(1);
@@ -175,7 +327,7 @@ describe('SearchService', () => {
     expect(result.data[1]?.id).toBe('c1');
   });
 
-  it('supports numeric elasticsearch totals', async () => {
+  it('uses multi_match without wildcard for multi-word queries and supports numeric totals', async () => {
     elasticsearch.search.mockResolvedValue({
       hits: {
         total: 0,
@@ -185,10 +337,58 @@ describe('SearchService', () => {
     commentsRepository.findByIds.mockResolvedValue([]);
     const service = createService();
 
-    await expect(service.search({ q: 'hello', page: 1, limit: 25 })).resolves.toMatchObject({
+    await expect(service.search({ q: 'load 8000', page: 1, limit: 25 })).resolves.toMatchObject({
       total: 0,
       totalPages: 0,
       data: [],
     });
+    expect(elasticsearch.search).toHaveBeenCalledWith({
+      index: COMMENTS_INDEX,
+      from: 0,
+      size: 25,
+      query: {
+        bool: {
+          should: [
+            {
+              multi_match: {
+                query: 'load 8000',
+                fields: ['plainText^3', 'username^3', 'plainText.ngram', 'username.ngram'],
+              },
+            },
+          ],
+          minimum_should_match: 1,
+        },
+      },
+    });
+  });
+
+  it('falls back to PostgreSQL when elasticsearch search fails', async () => {
+    const connectionError = new Error('');
+    connectionError.name = 'ConnectionError';
+    elasticsearch.search.mockRejectedValueOnce(connectionError);
+    elasticsearch.search.mockRejectedValueOnce('socket hang up');
+    commentsRepository.searchByText
+      .mockResolvedValueOnce([[sampleComment], 1])
+      .mockResolvedValueOnce([[], 0]);
+    const service = createService();
+
+    const found = await service.search({ q: '8000014', page: 1, limit: 25 });
+    expect(commentsRepository.searchByText).toHaveBeenCalledWith('8000014', 1, 25);
+    expect(found.total).toBe(1);
+    expect(found.data[0]?.id).toBe('c1');
+
+    const empty = await service.search({ q: 'missing', page: 1, limit: 25 });
+    expect(empty.total).toBe(0);
+    expect(empty.totalPages).toBe(0);
+  });
+
+  it('throws a user-friendly ServiceUnavailableException when both elasticsearch and database fail', async () => {
+    elasticsearch.search.mockRejectedValue(new Error('connect ECONNREFUSED'));
+    commentsRepository.searchByText.mockRejectedValue(new Error('db down'));
+    const service = createService();
+
+    await expect(service.search({ q: '8000014', page: 1, limit: 25 })).rejects.toThrow(
+      new ServiceUnavailableException(ERROR_MESSAGES.searchUnavailable),
+    );
   });
 });

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "comments-api-collection",
     "name": "Comments API",
-    "description": "Full collection for the Comments monorepo API (NestJS). Base URL: {{baseUrl}} (default http://localhost:3001/api/v1).\n\nAuth flow:\n1. GET /captcha  → sets `captcha` httpOnly cookie\n2. POST /auth/signup OR /auth/signin  → sets `access_token` + `refresh_token` httpOnly cookies\n3. Use POST /comments with multipart body (captcha value in body field, cookies sent automatically)\n\nVariables are in the `Comments API` environment (see Variables tab).",
+    "description": "Full collection for the Comments monorepo API (NestJS).\n\nBase URLs (Collection Variables):\n- `baseUrl`: `http://localhost:3001/api/v1` (Docker) or `http://localhost:4000/api/v1` (`npm run dev:api`)\n- `graphqlUrl`: `http://localhost:3001/graphql` (or `:4000/graphql`)\n- `wsUrl`: `http://localhost:3001` (or `:4000`)\n\nRecommended flow:\n1. GET /health -> verify database, graphql, websocket are `up`\n2. GET /captcha -> sets `captcha` httpOnly cookie and auto-saves `{{captcha_answer}}`\n3. POST /auth/signup or /auth/signin -> sets `access_token` + `refresh_token` httpOnly cookies\n4. POST /comments -> create root comment (multipart/form-data, allowed HTML: <a>, <code>, <i>, <strong>)\n5. GET /comments -> list roots (auto-saves `{{rootCommentId}}`)\n6. POST /comments/{{rootCommentId}}/vote -> toggle like (+1) / dislike (-1)\n7. POST /comments (with parentId={{rootCommentId}}) -> reply, then GET /comments/{{rootCommentId}}\n8. GET /comments/search?q={{searchQuery}} -> Elasticsearch search (with PostgreSQL ILIKE fallback)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,37 +10,49 @@
       "key": "baseUrl",
       "value": "http://localhost:3001/api/v1",
       "type": "string",
-      "description": "API base URL including version prefix"
+      "description": "REST API base URL including version prefix (use :4000 when running npm run dev:api)"
+    },
+    {
+      "key": "graphqlUrl",
+      "value": "http://localhost:3001/graphql",
+      "type": "string",
+      "description": "GraphQL endpoint URL (use :4000/graphql when running npm run dev:api)"
+    },
+    {
+      "key": "wsUrl",
+      "value": "http://localhost:3001",
+      "type": "string",
+      "description": "Socket.IO origin URL (use :4000 when running npm run dev:api)"
     },
     {
       "key": "access_token",
       "value": "",
       "type": "string",
-      "description": "JWT access token (httpOnly cookie, set automatically on signin/signup). Copy here only if you need to send it manually."
+      "description": "JWT access token (httpOnly cookie set automatically by signup/signin/refresh)."
     },
     {
       "key": "refresh_token",
       "value": "",
       "type": "string",
-      "description": "JWT refresh token (httpOnly cookie, set automatically on signin/signup)."
+      "description": "JWT refresh token (httpOnly cookie set automatically by signup/signin/refresh)."
     },
     {
       "key": "captcha_cookie",
       "value": "",
       "type": "string",
-      "description": "HMAC captcha token (httpOnly cookie, set automatically on GET /captcha)."
+      "description": "HMAC captcha token (httpOnly cookie set automatically on GET /captcha)."
     },
     {
       "key": "captcha_answer",
       "value": "",
       "type": "string",
-      "description": "Human-readable captcha text shown in the SVG (read the image, type answer here)."
+      "description": "5-character captcha code parsed automatically from GET /captcha SVG (or entered manually)."
     },
     {
       "key": "signupEmail",
       "value": "test@example.com",
       "type": "string",
-      "description": "Email used for signup"
+      "description": "Email used for signup/signin"
     },
     {
       "key": "signupPassword",
@@ -52,19 +64,31 @@
       "key": "signupFullName",
       "value": "TestUser",
       "type": "string",
-      "description": "Full name (letters + digits only, 2–100 chars)"
+      "description": "Full name (letters + digits only, 2-100 chars)"
+    },
+    {
+      "key": "signupHomepage",
+      "value": "https://example.com",
+      "type": "string",
+      "description": "Optional user homepage URL"
     },
     {
       "key": "rootCommentId",
       "value": "",
       "type": "string",
-      "description": "Root comment UUID — set after creating or listing comments"
+      "description": "Root comment UUID - auto-saved after creating or listing comments"
+    },
+    {
+      "key": "voteValue",
+      "value": "1",
+      "type": "string",
+      "description": "Vote value: 1 (upvote) or -1 (downvote)"
     },
     {
       "key": "searchQuery",
-      "value": "nestjs",
+      "value": "world",
       "type": "string",
-      "description": "Full-text search term for GET /comments/search"
+      "description": "Search query for GET /comments/search and GQL searchComments"
     }
   ],
   "item": [
@@ -73,6 +97,24 @@
       "item": [
         {
           "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All dependencies are up', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.eql('ok');",
+                  "  pm.expect(json.database).to.eql('up');",
+                  "  pm.expect(json.graphql).to.eql('up');",
+                  "  pm.expect(json.websocket).to.eql('up');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -81,7 +123,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["health"]
             },
-            "description": "Returns status of DB, GraphQL, and WebSocket. HTTP 200 = ok, 503 = degraded."
+            "description": "Returns status of database, GraphQL, and WebSocket. HTTP 200 = ok, 503 = error."
           },
           "response": [
             {
@@ -89,7 +131,7 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\"status\":\"ok\",\"db\":\"ok\",\"graphql\":\"ok\",\"ws\":\"ok\"}"
+              "body": "{\"status\":\"ok\",\"database\":\"up\",\"graphql\":\"up\",\"websocket\":\"up\"}"
             }
           ]
         }
@@ -105,12 +147,17 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// The captcha cookie is set via Set-Cookie header (httpOnly).",
-                  "// Postman automatically stores it in the cookie jar.",
-                  "// Manually read the SVG text and set {{captcha_answer}} before creating a comment.",
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Content-Type is SVG', () => {",
                   "  pm.expect(pm.response.headers.get('Content-Type')).to.include('image/svg+xml');",
+                  "});",
+                  "const svg = pm.response.text();",
+                  "const match = /letter-spacing=\"6\"[^>]*>([A-Z2-9]{5})</.exec(svg);",
+                  "if (match && match[1]) {",
+                  "  pm.collectionVariables.set('captcha_answer', match[1]);",
+                  "}",
+                  "pm.test('Captcha code extracted from SVG', () => {",
+                  "  pm.expect(match && match[1]).to.be.a('string').and.have.lengthOf(5);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -125,7 +172,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["captcha"]
             },
-            "description": "Returns an SVG captcha image and sets an httpOnly `captcha` cookie (HMAC token, 5 min TTL).\n\nWorkflow:\n1. Run this request → Postman stores the `captcha` cookie automatically.\n2. Open the response body (SVG) and read the visible text.\n3. Set the `captcha_answer` variable to that text.\n4. Use `captcha_answer` in the `captcha` field when creating a comment."
+            "description": "Returns an SVG captcha image and sets an httpOnly `captcha` cookie (HMAC token, 5 min TTL).\n\nThe test script automatically extracts the 5-char code into `{{captcha_answer}}`, and Postman stores the `captcha` cookie in its cookie jar."
           },
           "response": [
             {
@@ -139,7 +186,7 @@
                   "value": "captcha=<hmac>; HttpOnly; Path=/; SameSite=Lax; Max-Age=300"
                 }
               ],
-              "body": "<svg>...</svg>"
+              "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"180\" height=\"60\" viewBox=\"0 0 180 60\">...</svg>"
             }
           ]
         }
@@ -159,8 +206,7 @@
                   "pm.test('Body has status=success', () => {",
                   "  const json = pm.response.json();",
                   "  pm.expect(json.status).to.eql('success');",
-                  "});",
-                  "// access_token and refresh_token are httpOnly cookies — Postman stores them automatically."
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -171,7 +217,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fullName\": \"{{signupFullName}}\",\n  \"email\": \"{{signupEmail}}\",\n  \"password\": \"{{signupPassword}}\"\n}",
+              "raw": "{\n  \"fullName\": \"{{signupFullName}}\",\n  \"email\": \"{{signupEmail}}\",\n  \"password\": \"{{signupPassword}}\",\n  \"homepage\": \"{{signupHomepage}}\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -179,7 +225,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "signup"]
             },
-            "description": "Creates a new user account. Sets httpOnly cookies:\n- `access_token` (JWT, 15 min)\n- `refresh_token` (JWT, 7 days)\n\nBody fields:\n- `fullName` — 2–100 chars, letters and digits only\n- `email` — valid email, max 255 chars\n- `password` — min 6 chars\n- `homepage` — optional URL"
+            "description": "Creates a new user account and sets httpOnly cookies:\n- `access_token` (JWT, 15 min)\n- `refresh_token` (JWT, 7 days)\n\nBody fields:\n- `fullName` — required, 2–100 chars\n- `email` — required, valid email, max 255 chars\n- `password` — required, min 6 chars\n- `homepage` — optional http(s) URL"
           },
           "response": [
             {
@@ -200,7 +246,7 @@
               "status": "Conflict",
               "code": 409,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\"statusCode\":409,\"message\":\"Email already taken\"}"
+              "body": "{\"statusCode\":409,\"message\":\"Email is already registered\"}"
             }
           ]
         },
@@ -215,8 +261,7 @@
                   "pm.test('Body has status=success', () => {",
                   "  const json = pm.response.json();",
                   "  pm.expect(json.status).to.eql('success');",
-                  "});",
-                  "// access_token and refresh_token cookies are set automatically."
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -235,7 +280,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "signin"]
             },
-            "description": "Validates email/password and sets httpOnly auth cookies:\n- `access_token` (JWT, 15 min)\n- `refresh_token` (JWT, 7 days)"
+            "description": "Validates email/password and sets httpOnly auth cookies (`access_token` + `refresh_token`)."
           },
           "response": [
             {
@@ -285,11 +330,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "refresh"]
             },
-            "description": "Uses the `refresh_token` httpOnly cookie to rotate both tokens.\n\nRequires: `refresh_token` cookie (set automatically by signin/signup).\nRotates: `access_token` + `refresh_token` cookies."
+            "description": "Uses the `refresh_token` httpOnly cookie to rotate both `access_token` and `refresh_token` cookies."
           },
           "response": [
             {
-              "name": "200 OK — tokens rotated",
+              "name": "200 OK - tokens rotated",
               "status": "OK",
               "code": 200,
               "header": [
@@ -323,15 +368,15 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response has items array', () => {",
-                  "  const json = pm.response.json();",
-                  "  pm.expect(json).to.have.property('items');",
-                  "  pm.expect(json.items).to.be.an('array');",
-                  "});",
-                  "// Auto-save first comment id for use in child-comments request",
                   "const json = pm.response.json();",
-                  "if (json.items && json.items.length > 0) {",
-                  "  pm.collectionVariables.set('rootCommentId', json.items[0].id);",
+                  "pm.test('Response has data array and pagination metadata', () => {",
+                  "  pm.expect(json).to.have.property('data');",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "  pm.expect(json).to.have.property('total');",
+                  "  pm.expect(json).to.have.property('totalPages');",
+                  "});",
+                  "if (Array.isArray(json.data) && json.data.length > 0) {",
+                  "  pm.collectionVariables.set('rootCommentId', json.data[0].id);",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -346,11 +391,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["comments"],
               "query": [
-                { "key": "page", "value": "1", "description": "Page number (≥1, default: 1)" },
+                { "key": "page", "value": "1", "description": "Page number (>=1, default: 1)" },
                 {
                   "key": "limit",
                   "value": "25",
-                  "description": "Items per page (1–25, default: 25)"
+                  "description": "Items per page (1-25, default: 25)"
                 },
                 {
                   "key": "sort",
@@ -360,7 +405,7 @@
                 { "key": "order", "value": "desc", "description": "Sort direction: asc | desc" }
               ]
             },
-            "description": "Returns a paginated list of root-level comments.\n\nQuery params:\n- `page` — page number (default: 1)\n- `limit` — 1–25 items per page (default: 25)\n- `sort` — `createdAt` | `fullName` | `email` (default: `createdAt`)\n- `order` — `asc` | `desc` (default: `desc`)\n\nResponse: `{ items: Comment[], total: number, page: number, limit: number }`"
+            "description": "Returns a paginated list of root-level comments.\n\nResponse: `{ data: CommentResponse[], total: number, totalPages: number, status: 'success', message: string }`."
           },
           "response": [
             {
@@ -368,12 +413,27 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"items\": [\n    {\n      \"id\": \"uuid\",\n      \"fullName\": \"TestUser\",\n      \"email\": \"test@example.com\",\n      \"homepage\": null,\n      \"text\": \"Hello <b>world</b>\",\n      \"parentId\": null,\n      \"userId\": \"uuid-or-null\",\n      \"createdAt\": \"2025-01-01T00:00:00.000Z\",\n      \"attachment\": null\n    }\n  ],\n  \"total\": 1,\n  \"page\": 1,\n  \"limit\": 25\n}"
+              "body": "{\n  \"data\": [\n    {\n      \"id\": \"uuid\",\n      \"text\": \"Hello <strong>world</strong>\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"fullName\": \"TestUser\",\n      \"email\": \"test@example.com\",\n      \"homepage\": \"https://example.com\",\n      \"parentId\": null,\n      \"repliesCount\": 0,\n      \"votesScore\": 0,\n      \"userVote\": 0,\n      \"attachments\": []\n    }\n  ],\n  \"total\": 1,\n  \"totalPages\": 1,\n  \"status\": \"success\",\n  \"message\": \"Comments fetched successfully\"\n}"
             }
           ]
         },
         {
           "name": "Get children by root comment ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has data array', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -382,32 +442,32 @@
               "host": ["{{baseUrl}}"],
               "path": ["comments", "{{rootCommentId}}"]
             },
-            "description": "Returns all nested (child) comments for a given root comment.\n\nPath param:\n- `rootCommentId` — UUID of the root/parent comment (set from previous list response)\n\nResponse: same shape as the list endpoint."
+            "description": "Returns all nested (child) comments for a given root comment UUID."
           },
           "response": [
             {
-              "name": "200 OK — children list",
+              "name": "200 OK - children list",
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\"items\":[],\"total\":0,\"page\":1,\"limit\":25}"
+              "body": "{\"data\":[],\"status\":\"success\",\"message\":\"Comments fetched successfully\"}"
             }
           ]
         },
         {
-          "name": "Create comment (text only)",
+          "name": "Create comment (text + allowed HTML)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Has comment id', () => {",
-                  "  const json = pm.response.json();",
-                  "  pm.expect(json).to.have.property('id');",
-                  "});",
-                  "// Save root comment id",
                   "const json = pm.response.json();",
+                  "pm.test('Has comment id and vote fields', () => {",
+                  "  pm.expect(json).to.have.property('id');",
+                  "  pm.expect(json).to.have.property('votesScore');",
+                  "  pm.expect(json).to.have.property('attachments');",
+                  "});",
                   "if (json.id) pm.collectionVariables.set('rootCommentId', json.id);"
                 ],
                 "type": "text/javascript"
@@ -424,32 +484,38 @@
                   "key": "fullName",
                   "value": "TestUser",
                   "type": "text",
-                  "description": "2–100 chars, alphanumeric"
+                  "description": "2-100 chars, Latin letters and digits only"
                 },
                 {
                   "key": "email",
                   "value": "test@example.com",
                   "type": "text",
-                  "description": "valid email"
+                  "description": "Valid email"
                 },
                 {
                   "key": "text",
-                  "value": "Hello <b>world</b>",
+                  "value": "Hello <strong>world</strong>, <i>italic</i>, <code>const ok = true;</code>, and <a href=\"https://example.com\" title=\"Example\">link</a>",
                   "type": "text",
-                  "description": "Plain text or allowed HTML tags: <a>, <code>, <i>, <strong>, <b>"
+                  "description": "Plain text or valid XHTML using ONLY: <a href title>, <code>, <i>, <strong>"
                 },
                 {
                   "key": "captcha",
                   "value": "{{captcha_answer}}",
                   "type": "text",
-                  "description": "Value read from the captcha SVG (GET /captcha first)"
+                  "description": "5-char code from GET /captcha"
                 },
-                { "key": "homepage", "value": "", "type": "text", "description": "Optional URL" },
+                {
+                  "key": "homepage",
+                  "value": "https://example.com",
+                  "type": "text",
+                  "description": "Optional URL"
+                },
                 {
                   "key": "parentId",
                   "value": "",
                   "type": "text",
-                  "description": "Optional parent comment UUID for replies"
+                  "disabled": true,
+                  "description": "Enable and set parent UUID for replies"
                 }
               ]
             },
@@ -458,7 +524,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["comments"]
             },
-            "description": "Creates a root comment or reply. Auth is optional (cookie `access_token` attaches the user).\n\n**Before calling:**\n1. GET /captcha → read SVG text → set `{{captcha_answer}}`\n2. Optionally: POST /auth/signin to attach a user\n\n**Body** (multipart/form-data):\n- `fullName` — required, 2–100 chars, alphanumeric\n- `email` — required, valid email\n- `text` — required, max 10 000 chars, allowed HTML: `<a href>`, `<code>`, `<i>`, `<strong>`, `<b>`\n- `captcha` — required, text from the SVG\n- `homepage` — optional URL\n- `parentId` — optional UUID for thread replies\n- `image` — optional file (JPG/PNG/GIF, fitted to 320×240 px)\n- `textFile` — optional `.txt` file (max 100 KB)\n\n**Cookies** (sent automatically by Postman cookie jar):\n- `captcha` — set by GET /captcha\n- `access_token` — set by signin/signup (optional)"
+            "description": "Creates a root comment (or reply when `parentId` is set).\n\nRun `GET /captcha` first so Postman has the `captcha` cookie and `{{captcha_answer}}`.\n\nAllowed HTML tags: `<a href=\"...\" title=\"...\">`, `<code>`, `<i>`, `<strong>` (strictly well-formed XHTML)."
           },
           "response": [
             {
@@ -466,7 +532,7 @@
               "status": "Created",
               "code": 201,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"id\": \"uuid\",\n  \"fullName\": \"TestUser\",\n  \"email\": \"test@example.com\",\n  \"homepage\": null,\n  \"text\": \"Hello <b>world</b>\",\n  \"parentId\": null,\n  \"userId\": null,\n  \"createdAt\": \"2025-01-01T00:00:00.000Z\",\n  \"attachment\": null\n}"
+              "body": "{\n  \"id\": \"uuid\",\n  \"text\": \"Hello <strong>world</strong>, <i>italic</i>, <code>const ok = true;</code>, and <a href=\\\"https://example.com\\\" title=\\\"Example\\\">link</a>\",\n  \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n  \"fullName\": \"TestUser\",\n  \"email\": \"test@example.com\",\n  \"homepage\": \"https://example.com\",\n  \"parentId\": null,\n  \"repliesCount\": 0,\n  \"votesScore\": 0,\n  \"userVote\": 0,\n  \"attachments\": []\n}"
             }
           ]
         },
@@ -480,16 +546,16 @@
               "formdata": [
                 { "key": "fullName", "value": "TestUser", "type": "text" },
                 { "key": "email", "value": "test@example.com", "type": "text" },
-                { "key": "text", "value": "Check out this image", "type": "text" },
+                { "key": "text", "value": "Check out this <strong>image</strong>", "type": "text" },
                 { "key": "captcha", "value": "{{captcha_answer}}", "type": "text" },
                 {
                   "key": "image",
                   "value": "",
                   "type": "file",
-                  "description": "JPG/PNG/GIF — will be fitted to 320×240 px by sharp"
+                  "description": "JPG/PNG/GIF - proportionally fitted to <= 320x240 px by sharp"
                 },
-                { "key": "homepage", "value": "", "type": "text" },
-                { "key": "parentId", "value": "", "type": "text" }
+                { "key": "homepage", "value": "", "type": "text", "disabled": true },
+                { "key": "parentId", "value": "", "type": "text", "disabled": true }
               ]
             },
             "url": {
@@ -497,7 +563,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["comments"]
             },
-            "description": "Same as 'Create comment' but with an image file attachment.\nThe image is resized/fitted to max 320×240 px using sharp.\nSupported MIME types: image/jpeg, image/png, image/gif."
+            "description": "Creates a comment with an image attachment (JPG/PNG/GIF, resized to <= 320x240 px)."
           },
           "response": []
         },
@@ -511,7 +577,7 @@
               "formdata": [
                 { "key": "fullName", "value": "TestUser", "type": "text" },
                 { "key": "email", "value": "test@example.com", "type": "text" },
-                { "key": "text", "value": "See attached text file", "type": "text" },
+                { "key": "text", "value": "See attached <code>.txt</code> file", "type": "text" },
                 { "key": "captcha", "value": "{{captcha_answer}}", "type": "text" },
                 {
                   "key": "textFile",
@@ -519,8 +585,8 @@
                   "type": "file",
                   "description": ".txt file, max 100 KB"
                 },
-                { "key": "homepage", "value": "", "type": "text" },
-                { "key": "parentId", "value": "", "type": "text" }
+                { "key": "homepage", "value": "", "type": "text", "disabled": true },
+                { "key": "parentId", "value": "", "type": "text", "disabled": true }
               ]
             },
             "url": {
@@ -528,12 +594,27 @@
               "host": ["{{baseUrl}}"],
               "path": ["comments"]
             },
-            "description": "Same as 'Create comment' but with a plain-text file attachment (.txt, max 100 KB)."
+            "description": "Creates a comment with a plain-text file attachment (.txt, max 100 KB)."
           },
           "response": []
         },
         {
           "name": "Create reply to a comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Reply links to parentId', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.parentId).to.eql(pm.collectionVariables.get('rootCommentId'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [],
@@ -542,15 +623,18 @@
               "formdata": [
                 { "key": "fullName", "value": "ReplyUser", "type": "text" },
                 { "key": "email", "value": "reply@example.com", "type": "text" },
-                { "key": "text", "value": "This is a reply", "type": "text" },
+                {
+                  "key": "text",
+                  "value": "<i><strong>TestUser:</strong> quoted text</i> Reply body",
+                  "type": "text"
+                },
                 { "key": "captcha", "value": "{{captcha_answer}}", "type": "text" },
                 {
                   "key": "parentId",
                   "value": "{{rootCommentId}}",
                   "type": "text",
                   "description": "UUID of the parent comment"
-                },
-                { "key": "homepage", "value": "", "type": "text" }
+                }
               ]
             },
             "url": {
@@ -558,9 +642,53 @@
               "host": ["{{baseUrl}}"],
               "path": ["comments"]
             },
-            "description": "Creates a reply to an existing comment. Set `parentId` to the root comment's UUID.\n`rootCommentId` is auto-saved from the 'Get root comments' or 'Create comment' test scripts."
+            "description": "Creates a reply to `{{rootCommentId}}` (auto-saved by Get root comments or Create comment)."
           },
           "response": []
+        },
+        {
+          "name": "Vote comment (like +1 / dislike -1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns vote result', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.commentId).to.eql(pm.collectionVariables.get('rootCommentId'));",
+                  "  pm.expect(json.votesScore).to.be.a('number');",
+                  "  pm.expect([-1, 0, 1]).to.include(json.userVote);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": {{voteValue}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/comments/{{rootCommentId}}/vote",
+              "host": ["{{baseUrl}}"],
+              "path": ["comments", "{{rootCommentId}}", "vote"]
+            },
+            "description": "Toggles a like (`1`) or dislike (`-1`) on a comment.\n\n- Sending the same value twice removes the vote (`userVote: 0`).\n- Sending the opposite value switches the vote (`+1 <-> -1`).\n- Signed-in users vote as `user:<id>`; guests automatically receive an httpOnly `voter_id` cookie.\n- Broadcasts `comment.voted` over Socket.IO."
+          },
+          "response": [
+            {
+              "name": "200 OK - voted",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"commentId\":\"uuid\",\"votesScore\":1,\"userVote\":1}"
+            }
+          ]
         },
         {
           "name": "Search comments",
@@ -570,9 +698,10 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Has items array', () => {",
+                  "pm.test('Has data array', () => {",
                   "  const json = pm.response.json();",
-                  "  pm.expect(json).to.have.property('items');",
+                  "  pm.expect(json).to.have.property('data');",
+                  "  pm.expect(json.data).to.be.an('array');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -590,17 +719,17 @@
                 {
                   "key": "q",
                   "value": "{{searchQuery}}",
-                  "description": "Search query (1–100 chars), required"
+                  "description": "Search query (1-100 chars), required"
                 },
                 { "key": "page", "value": "1", "description": "Page number (default: 1)" },
                 {
                   "key": "limit",
                   "value": "25",
-                  "description": "Items per page (1–25, default: 25)"
+                  "description": "Items per page (1-25, default: 25)"
                 }
               ]
             },
-            "description": "Full-text search over comment text and author name via Elasticsearch.\n\nRequires Elasticsearch running (see `ELASTICSEARCH_NODE` env var).\nReturns hydrated comments from Postgres in ES hit order.\nHTML tags are stripped into `plainText` for matching.\n\nQuery params:\n- `q` — required, 1–100 chars\n- `page` — default: 1\n- `limit` — 1–25, default: 25"
+            "description": "Full-text and substring search over comment text and author name via Elasticsearch, with automatic PostgreSQL ILIKE fallback when Elasticsearch is unavailable."
           },
           "response": []
         }
@@ -610,86 +739,161 @@
       "name": "GraphQL",
       "item": [
         {
-          "name": "GQL — List comments",
+          "name": "GQL - Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('GraphQL health ok', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data.health).to.eql('API is running');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query Comments($input: CommentsListInput) {\\n  comments(input: $input) {\\n    items {\\n      id\\n      fullName\\n      email\\n      homepage\\n      text\\n      parentId\\n      userId\\n      createdAt\\n      attachment { id url mimeType size }\\n    }\\n    total\\n    page\\n    limit\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"page\": 1,\n      \"limit\": 25,\n      \"sort\": \"createdAt\",\n      \"order\": \"desc\"\n    }\n  }\n}",
+              "raw": "{\n  \"query\": \"{ health }\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "http://localhost:3001/graphql",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3001",
-              "path": ["graphql"]
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
             },
-            "description": "GraphQL query: list root comments with pagination and sorting.\n\nPlayground available at http://localhost:3001/graphql (non-production only)."
+            "description": "Simple GraphQL health query."
           },
           "response": []
         },
         {
-          "name": "GQL — Children by root ID",
+          "name": "GQL - List comments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('No GraphQL errors and data array returned', () => {",
+                  "  pm.expect(json.errors).to.be.undefined;",
+                  "  pm.expect(json.data.comments.data).to.be.an('array');",
+                  "});",
+                  "if (json.data && json.data.comments && json.data.comments.data.length > 0) {",
+                  "  pm.collectionVariables.set('rootCommentId', json.data.comments.data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query CommentChildren($rootId: String!) {\\n  commentChildren(rootId: $rootId) {\\n    items {\\n      id\\n      fullName\\n      email\\n      text\\n      parentId\\n      createdAt\\n    }\\n    total\\n  }\\n}\",\n  \"variables\": {\n    \"rootId\": \"{{rootCommentId}}\"\n  }\n}",
+              "raw": "{\n  \"query\": \"query Comments($input: CommentsListInput) {\\n  comments(input: $input) {\\n    data {\\n      id\\n      fullName\\n      email\\n      homepage\\n      text\\n      parentId\\n      createdAt\\n      repliesCount\\n      votesScore\\n      userVote\\n      attachments { id fileName fileType mimeType url }\\n    }\\n    total\\n    totalPages\\n    status\\n    message\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"page\": 1,\n      \"limit\": 25,\n      \"sort\": \"createdAt\",\n      \"order\": \"desc\"\n    }\n  }\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "http://localhost:3001/graphql",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3001",
-              "path": ["graphql"]
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            },
+            "description": "GraphQL query: list root comments with pagination, sorting, reply counts, vote scores, and attachments."
+          },
+          "response": []
+        },
+        {
+          "name": "GQL - Children by root ID",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query CommentChildren($rootId: String!) {\\n  commentChildren(rootId: $rootId) {\\n    data {\\n      id\\n      fullName\\n      email\\n      text\\n      parentId\\n      votesScore\\n      userVote\\n      createdAt\\n      attachments { id fileName fileType mimeType url }\\n    }\\n    status\\n    message\\n  }\\n}\",\n  \"variables\": {\n    \"rootId\": \"{{rootCommentId}}\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
             },
             "description": "GraphQL query: get child comments by root comment UUID."
           },
           "response": []
         },
         {
-          "name": "GQL — Search comments",
+          "name": "GQL - Search comments",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query SearchComments($q: String!, $page: Float, $limit: Float) {\\n  searchComments(q: $q, page: $page, limit: $limit) {\\n    items {\\n      id\\n      fullName\\n      email\\n      text\\n      createdAt\\n    }\\n    total\\n  }\\n}\",\n  \"variables\": {\n    \"q\": \"{{searchQuery}}\",\n    \"page\": 1,\n    \"limit\": 25\n  }\n}",
+              "raw": "{\n  \"query\": \"query SearchComments($q: String!, $page: Float, $limit: Float) {\\n  searchComments(q: $q, page: $page, limit: $limit) {\\n    data {\\n      id\\n      fullName\\n      email\\n      text\\n      votesScore\\n      userVote\\n      createdAt\\n    }\\n    total\\n    totalPages\\n    status\\n    message\\n  }\\n}\",\n  \"variables\": {\n    \"q\": \"{{searchQuery}}\",\n    \"page\": 1,\n    \"limit\": 25\n  }\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "http://localhost:3001/graphql",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3001",
-              "path": ["graphql"]
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
             },
-            "description": "GraphQL query: full-text search via Elasticsearch. Requires ES running."
+            "description": "GraphQL query: full-text and substring search (Elasticsearch with PostgreSQL ILIKE fallback)."
           },
           "response": []
         },
         {
-          "name": "GQL — Create comment (mutation)",
+          "name": "GQL - Create comment (mutation)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"mutation CreateComment($input: CreateCommentInput!) {\\n  createComment(input: $input) {\\n    id\\n    fullName\\n    email\\n    text\\n    parentId\\n    createdAt\\n    attachment { id url mimeType size }\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"fullName\": \"TestUser\",\n      \"email\": \"test@example.com\",\n      \"text\": \"GraphQL comment\",\n      \"captcha\": \"{{captcha_answer}}\",\n      \"homepage\": \"\",\n      \"parentId\": null\n    }\n  }\n}",
+              "raw": "{\n  \"query\": \"mutation CreateComment($input: CreateCommentInput!) {\\n  createComment(input: $input) {\\n    id\\n    fullName\\n    email\\n    text\\n    parentId\\n    repliesCount\\n    votesScore\\n    userVote\\n    createdAt\\n    attachments { id fileName fileType mimeType url }\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"fullName\": \"TestUser\",\n      \"email\": \"test@example.com\",\n      \"text\": \"GraphQL <strong>comment</strong> with <code>code</code>\",\n      \"captcha\": \"{{captcha_answer}}\",\n      \"homepage\": \"https://example.com\",\n      \"parentId\": null\n    }\n  }\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "http://localhost:3001/graphql",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3001",
-              "path": ["graphql"]
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
             },
-            "description": "GraphQL mutation: create a text-only comment.\n\nRequires `captcha` cookie (GET /captcha first).\nAuth is optional (`access_token` cookie attaches a user).\n\nFor file uploads via GraphQL, use the multipart upload spec (not covered here — use REST endpoint instead)."
+            "description": "GraphQL mutation: create a text-only comment. Run `GET /captcha` first so Postman has the `captcha` cookie and `{{captcha_answer}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "GQL - Vote comment (mutation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No GraphQL errors and vote result returned', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.errors).to.be.undefined;",
+                  "  pm.expect(json.data.voteComment.commentId).to.eql(pm.collectionVariables.get('rootCommentId'));",
+                  "  pm.expect([-1, 0, 1]).to.include(json.data.voteComment.userVote);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation VoteComment($commentId: String!, $value: Int!) {\\n  voteComment(commentId: $commentId, value: $value) {\\n    commentId\\n    votesScore\\n    userVote\\n  }\\n}\",\n  \"variables\": {\n    \"commentId\": \"{{rootCommentId}}\",\n    \"value\": {{voteValue}}\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            },
+            "description": "GraphQL mutation: toggle upvote (+1) or downvote (-1) on `{{rootCommentId}}`."
           },
           "response": []
         }
@@ -699,18 +903,16 @@
       "name": "WebSocket",
       "item": [
         {
-          "name": "Socket.IO — comment.created event",
+          "name": "Socket.IO - comment.created & comment.voted",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3001/socket.io",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3001",
+              "raw": "{{wsUrl}}/socket.io",
+              "host": ["{{wsUrl}}"],
               "path": ["socket.io"]
             },
-            "description": "WebSocket is not testable via standard Postman HTTP requests.\n\nUse Postman's WebSocket request feature or a browser console:\n\n```javascript\n// In browser console or Postman WebSocket tab:\nconst { io } = await import('https://cdn.socket.io/4.8.1/socket.io.esm.min.js');\nconst socket = io('http://localhost:3001', { withCredentials: true });\nsocket.on('comment.created', (comment) => console.log('New comment:', comment));\n```\n\nEvent: `comment.created` — fired after the outbox publisher processes a new comment (async, ~0–2 s after HTTP 201).\nPayload: same shape as the comment object returned by POST /comments."
+            "description": "Use Postman's WebSocket / Socket.IO client or a browser DevTools console:\n\n```javascript\nconst { io } = await import('https://cdn.socket.io/4.8.1/socket.io.esm.min.js');\nconst socket = io('http://localhost:3001', { withCredentials: true }); // or :4000 in local dev\nsocket.on('comment.created', (comment) => console.log('New comment:', comment));\nsocket.on('comment.voted', (vote) => console.log('Vote update:', vote));\n```\n\nEvents:\n- `comment.created` — emitted after the outbox publisher processes a newly created comment.\n- `comment.voted` — emitted immediately after `POST /comments/:id/vote` or GraphQL `voteComment` with `{ commentId, rootId, votesScore }`."
           },
           "response": []
         }
@@ -729,7 +931,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["docs"]
             },
-            "description": "Opens the Swagger UI (OpenAPI 3.0). Full interactive documentation with cookie auth support.\nURL: http://localhost:3001/api/v1/docs"
+            "description": "Opens the Swagger UI (OpenAPI 3.0) with cookie auth support."
           },
           "response": []
         },
@@ -743,7 +945,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["docs-json"]
             },
-            "description": "Returns the raw OpenAPI 3.0 JSON spec. Can be imported into Postman or other tools."
+            "description": "Returns the raw OpenAPI 3.0 JSON spec."
           },
           "response": []
         }

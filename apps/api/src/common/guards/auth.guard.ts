@@ -13,6 +13,7 @@ export type RequestWithUser = Omit<Request, 'cookies'> & {
   cookies?: {
     access_token?: string;
     captcha?: string;
+    voter_id?: string;
   };
 };
 

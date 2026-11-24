@@ -18,6 +18,8 @@ describe('buildGraphQLOptions', () => {
       }),
     );
 
+    expect(options.autoSchemaFile).toEqual(expect.stringContaining('apps/api/schema.gql'));
+    expect(options.playground).toBe(true);
     expect(formatted).toMatchObject({
       message: 'Invalid captcha',
       extensions: {
@@ -39,6 +41,8 @@ describe('buildGraphQLOptions', () => {
       new Error('secret db password'),
     );
 
+    expect(options.autoSchemaFile).toBe(true);
+    expect(options.playground).toBe(false);
     expect(formatted).toEqual({
       message: ERROR_MESSAGES.internalServerError,
       extensions: {

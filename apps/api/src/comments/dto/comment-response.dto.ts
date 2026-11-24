@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import type { CommentAttachments, CommentResponse } from '@comments/shared';
+import type {
+  CommentAttachments,
+  CommentResponse,
+  CommentVoteResult,
+  CommentVoteValue,
+  UserVoteValue,
+} from '@comments/shared';
 import type { UsersEntity } from '@app/users/entity/users.entity';
 
 import type { CommentsEntity } from '../entity/comments.entity';
@@ -44,11 +50,41 @@ export class CommentResponseDto implements CommentResponse {
   @ApiProperty({ type: String, nullable: true })
   parentId!: string | null;
 
+  @ApiProperty({ example: 0, required: false })
+  repliesCount?: number;
+
+  @ApiProperty({ example: 0, required: false })
+  votesScore?: number;
+
+  @ApiProperty({ enum: [-1, 0, 1], example: 0, required: false })
+  userVote?: UserVoteValue;
+
   @ApiProperty({ type: [CommentAttachmentDto] })
   attachments!: CommentAttachments[];
 }
 
-export const toCommentResponse = (comment: CommentsEntity, user: UsersEntity): CommentResponse => ({
+export class CommentVoteDto {
+  @ApiProperty({ enum: [-1, 1], example: 1 })
+  value!: CommentVoteValue;
+}
+
+export class CommentVoteResultDto implements CommentVoteResult {
+  @ApiProperty({ format: 'uuid' })
+  commentId!: string;
+
+  @ApiProperty({ example: 1 })
+  votesScore!: number;
+
+  @ApiProperty({ enum: [-1, 0, 1], example: 1 })
+  userVote!: UserVoteValue;
+}
+
+export const toCommentResponse = (
+  comment: CommentsEntity,
+  user: UsersEntity,
+  repliesCount = 0,
+  userVote: UserVoteValue = 0,
+): CommentResponse => ({
   id: comment.id,
   text: comment.text,
   createdAt: comment.createdAt.toISOString(),
@@ -56,6 +92,9 @@ export const toCommentResponse = (comment: CommentsEntity, user: UsersEntity): C
   email: user.email,
   homepage: user.homepage ?? '',
   parentId: comment.parentId,
+  repliesCount,
+  votesScore: Number.isFinite(comment.votesScore) ? comment.votesScore : 0,
+  userVote,
   attachments: Array.isArray(comment.attachments)
     ? comment.attachments.map((file) => ({
         id: file.id,

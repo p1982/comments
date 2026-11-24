@@ -18,6 +18,7 @@ import { OutboxModule } from '@app/outbox/outbox.module';
 import { CommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
 import { CommentsEntity } from './entity/comments.entity';
+import { CommentVotesEntity } from './entity/comment-votes.entity';
 import { CommentResolver } from './graphql/comments.resolver';
 import { CommentsGateway } from './gateway/comments.gateway';
 import { CommentCreatedListener } from './listeners/comment-created.listener';
@@ -27,6 +28,7 @@ import { CommentJobConsumer } from './queue/comment-job.consumer';
 import { CommentJobProcessor } from './queue/comment-job.processor';
 import { CommentQueueService } from './queue/comment-queue.service';
 import { CommentsRepository } from './repository/comments.repository';
+import { CommentVotesRepository } from './repository/comment-votes.repository';
 import { RabbitCommentQueueService } from './queue/rabbit-comment-queue.service';
 
 loadEnv({ path: resolve(process.cwd(), '.env') });
@@ -90,7 +92,7 @@ const rabbitImports: DynamicModule[] = useRabbit
     UsersModule,
     SearchModule,
     OutboxModule,
-    TypeOrmModule.forFeature([CommentsEntity, UsersEntity, AttachmentsEntity]),
+    TypeOrmModule.forFeature([CommentsEntity, CommentVotesEntity, UsersEntity, AttachmentsEntity]),
     ...rabbitImports,
     CacheModule.register({
       ttl: 30_000,
@@ -103,6 +105,7 @@ const rabbitImports: DynamicModule[] = useRabbit
   providers: [
     CommentsService,
     CommentsRepository,
+    CommentVotesRepository,
     AttachmentsRepository,
     CommentCreatedListener,
     CommentsGateway,

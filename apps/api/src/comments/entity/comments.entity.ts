@@ -21,6 +21,9 @@ export class CommentsEntity extends SoftDeleteTableEntity {
   @Column({ name: 'text', type: 'text' })
   text!: string;
 
+  @Column({ name: 'votes_score', type: 'int', default: 0 })
+  votesScore!: number;
+
   @ManyToOne('UsersEntity', 'comments')
   @JoinColumn({ name: 'user_id' })
   user!: UsersEntity;
