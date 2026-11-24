@@ -133,6 +133,19 @@ describe('commentsSchema', () => {
         );
       }
     });
+
+    it('rejects non-Latin characters, spaces, and symbols', () => {
+      for (const value of ['АБ123', 'AB 12', 'AB-12', 'AB!@#']) {
+        const result = parse({ captcha: value });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0]?.message).toBe(
+            'Captcha must contain only Latin letters and numbers',
+          );
+        }
+      }
+    });
   });
 
   describe('homepage', () => {

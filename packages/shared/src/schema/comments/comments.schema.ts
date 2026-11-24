@@ -43,7 +43,10 @@ export const commentsSchema = z.object({
     .string()
     .trim()
     .min(1, { message: 'Captcha is required' })
-    .max(10, { message: 'Captcha must be less than 10 characters long' }),
+    .max(10, { message: 'Captcha must be less than 10 characters long' })
+    .regex(/^[A-Za-z0-9]+$/, {
+      message: 'Captcha must contain only Latin letters and numbers',
+    }),
 });
 
 export type CommentsSchema = z.infer<typeof commentsSchema>;

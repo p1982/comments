@@ -16,6 +16,28 @@ export class CreateCommentDto {
   @ApiPropertyOptional({ example: 'https://ann.example', maxLength: 500 })
   homepage?: string;
 
-  @ApiProperty({ example: 'Hello <strong>world</strong>', maxLength: 10000 })
+  @ApiProperty({ example: 'Hello <strong>world</strong>', minLength: 1, maxLength: 10000 })
   text!: string;
+
+  @ApiProperty({
+    example: 'ABCDE',
+    minLength: 1,
+    maxLength: 10,
+    description: 'Code from GET /api/v1/captcha (validated against the httpOnly captcha cookie).',
+  })
+  captcha!: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Optional JPG, PNG, or GIF image (fitted to <= 320x240, max 5 MB).',
+  })
+  image?: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Optional .txt attachment (max 100 KB).',
+  })
+  textFile?: string;
 }
