@@ -4,6 +4,17 @@ SPA «Коментарі»: користувачі залишають повід
 
 Репозиторій: https://github.com/p1982/comments
 
+### Live Demo (Railway)
+
+| Сервіс             | URL                                                                    |
+| ------------------ | ---------------------------------------------------------------------- |
+| Web (UK / EN)      | https://comments-front-production.up.railway.app/uk                    |
+| API Health         | https://comments-back-production-228b6ee2.up.railway.app/api/v1/health |
+| Swagger UI         | https://comments-back-production-228b6ee2.up.railway.app/api/v1/docs   |
+| GraphQL Playground | https://comments-back-production-228b6ee2.up.railway.app/graphql       |
+
+Детальна конфігурація Railway (env, Volume, чекліст перевірки) — у [`docs/deploy.md`](docs/deploy.md).
+
 ## Зміст
 
 1. [Що вміє продукт](#що-вміє-продукт)
@@ -385,6 +396,7 @@ npm run check / check:branch
 
 ## Документація
 
+- [Деплой на Railway і чекліст перевірки](docs/deploy.md) — Live URLs, env-змінні, Volume і результати перевірки
 - [План масштабу](docs/comments-scale.md) — 1M коментарів / ~100k користувачів на добу
 - [Звіт навантаження](docs/load-report.md)
 - [Postman-колекція API](docs/comments-api.postman_collection.json)
