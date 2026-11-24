@@ -103,7 +103,7 @@ test/comments-load
 41. [x] `docs/readme-features` — що це за проєкт, які функції є, запуск з нуля лише за README. — 1 год.
 42. [x] `chore/cloud-run` — один хмарний провайдер: AWS, GCP, Azure або Yandex Cloud. Middle. — 4 год.
 43. [x] `chore/deploy` — хостинг або VDS і перевірка за чек-листом. — 3 год.
-44. [ ] `docs/self-check` — чистий клон, кроки з README, застосунок відкривається. — 1 год.
+44. [x] `docs/self-check` — чистий клон, кроки з README, застосунок відкривається. — 1 год.
 
 ## Додаткові гілки з репозиторію
 

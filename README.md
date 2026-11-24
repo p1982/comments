@@ -397,6 +397,7 @@ npm run check / check:branch
 ## Документація
 
 - [Деплой на Railway і чекліст перевірки](docs/deploy.md) — Live URLs, env-змінні, Volume і результати перевірки
+- [Self-check (чистий клон за README)](docs/self-check.md) — протокол запуску з нуля та перевірки всіх ендпоінтів
 - [План масштабу](docs/comments-scale.md) — 1M коментарів / ~100k користувачів на добу
 - [Звіт навантаження](docs/load-report.md)
 - [Postman-колекція API](docs/comments-api.postman_collection.json)
