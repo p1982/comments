@@ -19,7 +19,12 @@ describe('buildGraphQLOptions', () => {
     );
 
     expect(options.autoSchemaFile).toEqual(expect.stringContaining('apps/api/schema.gql'));
-    expect(options.playground).toBe(true);
+    expect(options.introspection).toBe(true);
+    expect(options.playground).toEqual({
+      settings: {
+        'request.credentials': 'include',
+      },
+    });
     expect(formatted).toMatchObject({
       message: 'Invalid captcha',
       extensions: {
@@ -31,7 +36,7 @@ describe('buildGraphQLOptions', () => {
     expect(formatted).not.toHaveProperty('extensions.exception');
   });
 
-  it('hides unexpected errors in production through the wired formatError', () => {
+  it('hides unexpected errors in production while keeping Playground enabled by default', () => {
     const options = buildGraphQLOptions({
       get: (key: string) => (key === 'NODE_ENV' ? 'production' : undefined),
     } as unknown as ConfigService);
@@ -42,7 +47,12 @@ describe('buildGraphQLOptions', () => {
     );
 
     expect(options.autoSchemaFile).toBe(true);
-    expect(options.playground).toBe(false);
+    expect(options.introspection).toBe(true);
+    expect(options.playground).toEqual({
+      settings: {
+        'request.credentials': 'include',
+      },
+    });
     expect(formatted).toEqual({
       message: ERROR_MESSAGES.internalServerError,
       extensions: {
@@ -50,5 +60,22 @@ describe('buildGraphQLOptions', () => {
       },
     });
     expect(JSON.stringify(formatted)).not.toContain('secret');
+  });
+
+  it('disables Playground and introspection when GRAPHQL_PLAYGROUND=false', () => {
+    const options = buildGraphQLOptions({
+      get: (key: string) => {
+        if (key === 'NODE_ENV') {
+          return 'production';
+        }
+        if (key === 'GRAPHQL_PLAYGROUND') {
+          return 'false';
+        }
+        return undefined;
+      },
+    } as unknown as ConfigService);
+
+    expect(options.introspection).toBe(false);
+    expect(options.playground).toBe(false);
   });
 });
