@@ -40,7 +40,6 @@ Thumbs.db
 
 # Documents
 *.pdf
-task.md
 
 .nx/cache
 .nx/workspace-data
