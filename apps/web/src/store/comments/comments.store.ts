@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -32,10 +33,13 @@ interface CommentsState {
   totalPages: number;
   comment: CommentResponse | null;
   isLoading: boolean;
+  loadingChildrenIds: Record<string, boolean>;
+  expandedRootIds: Record<string, boolean>;
   error: string | null;
   commentTarget: CommentTarget | null;
   fetchComments: (query?: GetCommentsQuery) => Promise<void>;
   fetchChildrenComments: (rootId: string) => Promise<void>;
+  setRootExpanded: (rootId: string, expanded: boolean) => void;
   createComment: (comment: CommentsSchema, image?: File, textFile?: File) => Promise<void>;
   openRootForm: () => void;
   openReplyForm: (parentId: string, rootId: string) => void;
@@ -49,12 +53,30 @@ interface CommentTarget {
   rootId: string | null;
 }
 
+const extractErrorMessage = (error: unknown, fallback: string): string => {
+  if (isAxiosError<{ message?: string | string[] } | undefined>(error)) {
+    const apiMessage = error.response?.data?.message;
+    if (Array.isArray(apiMessage) && apiMessage.length > 0) {
+      return apiMessage.join(', ');
+    }
+    if (typeof apiMessage === 'string' && apiMessage.trim().length > 0) {
+      return apiMessage;
+    }
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+};
+
+const omitKey = (record: Record<string, boolean>, target: string): Record<string, boolean> =>
+  Object.fromEntries(Object.entries(record).filter(([key]) => key !== target));
+
 const useCommentsStore = create<CommentsState>()(
   persist(
     (set, get) => ({
       comments: {},
       childrenComments: {},
       isLoading: false,
+      loadingChildrenIds: {},
+      expandedRootIds: {},
       error: null,
       commentsIds: [],
       total: 0,
@@ -92,7 +114,7 @@ const useCommentsStore = create<CommentsState>()(
             totalPages: data.totalPages ?? 0,
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Failed to load comments';
+          const message = extractErrorMessage(error, 'Failed to load comments');
           set({ error: message });
         } finally {
           set({ isLoading: false });
@@ -100,43 +122,79 @@ const useCommentsStore = create<CommentsState>()(
       },
 
       fetchChildrenComments: async (rootId: string) => {
-        const state = get();
-        set({ isLoading: true, error: null });
+        set((state) => ({
+          loadingChildrenIds: { ...state.loadingChildrenIds, [rootId]: true },
+          error: null,
+        }));
         try {
           const { data } = await commentsService.getCommentByIdRoot(rootId);
           const [comments, commentsIds] = reduceComments(data.data);
-          set({
-            childrenComments: {
-              ...state.childrenComments,
-              [rootId]: {
-                comments,
-                commentsIds,
-                rootId,
+          set((state) => {
+            const rootComment = state.comments[rootId];
+            return {
+              childrenComments: {
+                ...state.childrenComments,
+                [rootId]: {
+                  comments,
+                  commentsIds,
+                  rootId,
+                },
               },
-            },
+              ...(rootComment
+                ? {
+                    comments: {
+                      ...state.comments,
+                      [rootId]: { ...rootComment, repliesCount: commentsIds.length },
+                    },
+                  }
+                : {}),
+            };
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Failed to load comments';
+          const message = extractErrorMessage(error, 'Failed to load comments');
           set({ error: message });
         } finally {
-          set({ isLoading: false });
+          set((state) => ({
+            loadingChildrenIds: omitKey(state.loadingChildrenIds, rootId),
+          }));
         }
+      },
+      setRootExpanded: (rootId: string, expanded: boolean) => {
+        set((state) => ({
+          expandedRootIds: expanded
+            ? { ...state.expandedRootIds, [rootId]: true }
+            : omitKey(state.expandedRootIds, rootId),
+        }));
       },
       createComment: async (comment: CommentsSchema, image?: File, textFile?: File) => {
         const rootId = comment.parentId ? (get().commentTarget?.rootId ?? comment.parentId) : null;
-        set({ isLoading: true, error: null });
+        if (rootId) {
+          set((state) => ({
+            loadingChildrenIds: { ...state.loadingChildrenIds, [rootId]: true },
+            error: null,
+          }));
+        } else {
+          set({ isLoading: true, error: null });
+        }
         try {
           await commentsService.createComment(comment, image, textFile);
           if (rootId) {
             await get().fetchChildrenComments(rootId);
+            get().setRootExpanded(rootId, true);
             return;
           }
           await get().fetchComments({ page: 1 });
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Failed to create comment';
+          const message = extractErrorMessage(error, 'Failed to create comment');
           set({ error: message });
         } finally {
-          set({ isLoading: false });
+          if (rootId) {
+            set((state) => ({
+              loadingChildrenIds: omitKey(state.loadingChildrenIds, rootId),
+            }));
+          } else {
+            set({ isLoading: false });
+          }
         }
       },
       openRootForm: () => {
@@ -146,7 +204,7 @@ const useCommentsStore = create<CommentsState>()(
         set({ commentTarget: { parentId, rootId } });
       },
       closeCommentForm: () => {
-        set({ commentTarget: null });
+        set({ commentTarget: null, error: null });
       },
       applyRemoteComment: (comment: CommentResponse) => {
         const state = get();
@@ -187,6 +245,18 @@ const useCommentsStore = create<CommentsState>()(
         });
 
         if (!rootId) {
+          const directRoot = state.comments[parentId];
+          if (directRoot) {
+            set({
+              comments: {
+                ...state.comments,
+                [parentId]: {
+                  ...directRoot,
+                  repliesCount: (directRoot.repliesCount ?? 0) + 1,
+                },
+              },
+            });
+          }
           return;
         }
 
@@ -206,15 +276,32 @@ const useCommentsStore = create<CommentsState>()(
           return;
         }
 
+        const nextCommentsIds = [...thread.commentsIds, comment.id];
+        const rootComment = state.comments[rootId];
+
         set({
           childrenComments: {
             ...state.childrenComments,
             [rootId]: {
               ...thread,
               comments: { ...thread.comments, [comment.id]: comment },
-              commentsIds: [...thread.commentsIds, comment.id],
+              commentsIds: nextCommentsIds,
             },
           },
+          ...(rootComment
+            ? {
+                comments: {
+                  ...state.comments,
+                  [rootId]: {
+                    ...rootComment,
+                    repliesCount: Math.max(
+                      (rootComment.repliesCount ?? 0) + 1,
+                      nextCommentsIds.length,
+                    ),
+                  },
+                },
+              }
+            : {}),
         });
       },
       searchComments: async (query: CommentsSearchQuery) => {
@@ -232,8 +319,17 @@ const useCommentsStore = create<CommentsState>()(
             totalPages: data.totalPages ?? 0,
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Failed to search comments';
-          set({ error: message });
+          const message = extractErrorMessage(error, 'Failed to search comments');
+          set({
+            comments: {},
+            commentsIds: [],
+            page: query.page,
+            limit: query.limit,
+            searchQuery: query.q,
+            total: 0,
+            totalPages: 0,
+            error: message,
+          });
         } finally {
           set({ isLoading: false });
         }

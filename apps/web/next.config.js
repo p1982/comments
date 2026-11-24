@@ -16,8 +16,8 @@ function resolveI18nPath() {
   return `./${path.relative(process.cwd(), absolute).replace(/\\/g, '/')}`;
 }
 
-const apiBaseUrl = process.env['API_BASE_URL'] ?? 'http://localhost:3001';
-const apiVersion = process.env['API_VERSION'] ?? '1';
+const apiBaseUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
+const apiVersion = process.env['NEXT_PUBLIC_API_VERSION'] ?? '1';
 const apiUrl = `${apiBaseUrl.replace(/\/$/, '')}/api/v${apiVersion}`;
 
 const withNextIntl = createNextIntlPlugin(resolveI18nPath());

@@ -8,6 +8,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 import { CookiesName } from '@comments/shared';
 
@@ -21,15 +22,18 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   const apiVersion = config.get<string>('API_VERSION', '1');
-  const port = config.get<number>('PORT', 3000);
+  const port = config.get<number>('API_PORT', 4000);
   const apiBaseUrl = `http://localhost:${String(port)}`;
   const globalPrefix = `api/v${apiVersion}`;
 
   app.setGlobalPrefix(globalPrefix);
+
   app.enableCors({
     origin: config.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
     credentials: true,
   });
+
+  app.useWebSocketAdapter(new IoAdapter(app));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -37,7 +41,9 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
   app.use(cookieParser());
+
   app.useStaticAssets(join(process.cwd(), 'apps', 'api', 'assets'), { prefix: '/assets/' });
 
   app.use(

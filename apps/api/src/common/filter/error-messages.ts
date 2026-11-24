@@ -12,6 +12,7 @@ export const ERROR_MESSAGES = {
   userNotFound: 'User not found',
   validationError: 'Validation error',
   notFound: 'Not found',
+  searchUnavailable: 'Search is temporarily unavailable. Please try again later.',
 } as const;
 
 export const ERROR_CODES = {

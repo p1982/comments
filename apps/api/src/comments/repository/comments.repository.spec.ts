@@ -4,12 +4,27 @@ import type { CommentsEntity } from '../entity/comments.entity';
 import { CommentsRepository } from './comments.repository';
 
 describe('CommentsRepository', () => {
+  const queryBuilder = {
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    getManyAndCount: jest.fn(),
+    getRawMany: jest.fn(),
+  };
   const repo = {
     find: jest.fn(),
     findAndCount: jest.fn(),
     findOne: jest.fn(),
     create: jest.fn((data: Partial<CommentsEntity>) => data),
     save: jest.fn(),
+    createQueryBuilder: jest.fn(() => queryBuilder),
   };
   const manager = {
     getRepository: jest.fn(() => repo),
@@ -112,5 +127,65 @@ describe('CommentsRepository', () => {
     repo.findOne.mockResolvedValue(null);
 
     await expect(comments.create(data, manager)).resolves.toBe(saved);
+  });
+
+  it('finds comments by ids in requested order and short-circuits empty lists', async () => {
+    await expect(comments.findByIds([])).resolves.toEqual([]);
+    expect(repo.find).not.toHaveBeenCalled();
+
+    const c1 = { id: 'c1' } as CommentsEntity;
+    const c2 = { id: 'c2' } as CommentsEntity;
+    repo.find.mockResolvedValue([c1, c2]);
+
+    await expect(comments.findByIds(['c2', 'missing', 'c1'])).resolves.toEqual([c2, c1]);
+  });
+
+  it('searches comments in PostgreSQL by escaped ILIKE substring pattern', async () => {
+    const match = { id: 'c1' } as CommentsEntity;
+    queryBuilder.getManyAndCount.mockResolvedValue([[match], 1]);
+
+    await expect(comments.searchByText('80_00%14\\', 2, 10)).resolves.toEqual([[match], 1]);
+
+    expect(repo.createQueryBuilder).toHaveBeenCalledWith('comment');
+    expect(queryBuilder.where).toHaveBeenCalledWith(expect.stringContaining('ILIKE :pattern'), {
+      pattern: '%80\\_00\\%14\\\\%',
+    });
+    expect(queryBuilder.skip).toHaveBeenCalledWith(10);
+    expect(queryBuilder.take).toHaveBeenCalledWith(10);
+  });
+
+  it('loads ordered comment batches for search reindexing', async () => {
+    const batch = [{ id: 'c1' } as CommentsEntity];
+    repo.find.mockResolvedValue(batch);
+
+    await expect(comments.findBatchForIndex(500, 500)).resolves.toEqual(batch);
+    expect(repo.find).toHaveBeenCalledWith({
+      relations: { user: true },
+      order: { createdAt: 'ASC', id: 'ASC' },
+      skip: 500,
+      take: 500,
+    });
+  });
+
+  it('counts replies grouped by root id and short-circuits empty input', async () => {
+    await expect(comments.countRepliesByRootIds([])).resolves.toEqual(new Map());
+    expect(repo.createQueryBuilder).not.toHaveBeenCalled();
+
+    queryBuilder.getRawMany.mockResolvedValue([
+      { rootId: 'r1', count: '5' },
+      { rootId: 'r2', count: '12' },
+    ]);
+
+    await expect(comments.countRepliesByRootIds(['r1', 'r2'])).resolves.toEqual(
+      new Map([
+        ['r1', 5],
+        ['r2', 12],
+      ]),
+    );
+    expect(queryBuilder.where).toHaveBeenCalledWith('comment.rootId IN (:...rootIds)', {
+      rootIds: ['r1', 'r2'],
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('comment.parentId IS NOT NULL');
+    expect(queryBuilder.groupBy).toHaveBeenCalledWith('comment.rootId');
   });
 });

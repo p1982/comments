@@ -56,10 +56,11 @@ const Search = () => {
       noValidate
       sx={{
         display: 'flex',
-        alignItems: 'flex-start',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'stretch', sm: 'flex-start' },
         gap: 1,
         width: '100%',
-        maxWidth: 480,
+        maxWidth: { xs: '100%', md: 480 },
       }}
     >
       <TextField
@@ -72,17 +73,31 @@ const Search = () => {
         helperText={errors.q?.message}
         {...register('q')}
       />
-      <Button type="submit" variant="contained" disabled={isSubmitting || isLoading}>
-        {t('search')}
-      </Button>
-      <Button
-        type="button"
-        variant="outlined"
-        disabled={isSubmitting || isLoading}
-        onClick={onClear}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          flexShrink: 0,
+        }}
       >
-        {t('searchClear')}
-      </Button>
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={isSubmitting || isLoading}
+          sx={{ flex: { xs: 1, sm: 'none' }, height: 40, whiteSpace: 'nowrap' }}
+        >
+          {t('search')}
+        </Button>
+        <Button
+          type="button"
+          variant="outlined"
+          disabled={isSubmitting || isLoading}
+          onClick={onClear}
+          sx={{ flex: { xs: 1, sm: 'none' }, height: 40, whiteSpace: 'nowrap' }}
+        >
+          {t('searchClear')}
+        </Button>
+      </Box>
     </Box>
   );
 };

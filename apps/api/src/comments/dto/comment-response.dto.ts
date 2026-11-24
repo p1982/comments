@@ -44,11 +44,18 @@ export class CommentResponseDto implements CommentResponse {
   @ApiProperty({ type: String, nullable: true })
   parentId!: string | null;
 
+  @ApiProperty({ example: 0, required: false })
+  repliesCount?: number;
+
   @ApiProperty({ type: [CommentAttachmentDto] })
   attachments!: CommentAttachments[];
 }
 
-export const toCommentResponse = (comment: CommentsEntity, user: UsersEntity): CommentResponse => ({
+export const toCommentResponse = (
+  comment: CommentsEntity,
+  user: UsersEntity,
+  repliesCount = 0,
+): CommentResponse => ({
   id: comment.id,
   text: comment.text,
   createdAt: comment.createdAt.toISOString(),
@@ -56,6 +63,7 @@ export const toCommentResponse = (comment: CommentsEntity, user: UsersEntity): C
   email: user.email,
   homepage: user.homepage ?? '',
   parentId: comment.parentId,
+  repliesCount,
   attachments: Array.isArray(comment.attachments)
     ? comment.attachments.map((file) => ({
         id: file.id,

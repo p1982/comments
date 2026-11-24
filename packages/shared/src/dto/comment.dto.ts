@@ -33,6 +33,7 @@ export interface CommentResponse {
   email: string;
   homepage: string;
   parentId: string | null;
+  repliesCount?: number;
   attachments: CommentAttachments[];
 }
 

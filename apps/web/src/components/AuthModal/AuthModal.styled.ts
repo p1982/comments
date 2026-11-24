@@ -39,13 +39,20 @@ export const AuthFields = styled(Stack).attrs({
 
 export const AuthDialogActions = styled(DialogActions)`
   && {
+    flex-wrap: wrap;
     justify-content: space-between;
+    gap: 8px;
     padding: 8px 24px 16px;
+
+    @media (max-width: 600px) {
+      padding: 8px 16px 16px;
+    }
   }
 `;
 
 export const AuthSwitchRow = styled(Box)`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
 `;

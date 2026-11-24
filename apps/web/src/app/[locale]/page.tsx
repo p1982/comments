@@ -15,10 +15,14 @@ export default async function page() {
 
   return (
     <Box sx={{ bgcolor: '#f7f8fa', minHeight: '100vh' }}>
-      <Container maxWidth="md" sx={{ py: 6 }}>
-        <Stack spacing={3}>
+      <Container maxWidth="md" sx={{ py: { xs: 2.5, sm: 4, md: 6 }, px: { xs: 1.5, sm: 3 } }}>
+        <Stack spacing={{ xs: 2, sm: 3 }}>
           <Stack spacing={1}>
-            <Typography variant="h3" component="h1">
+            <Typography
+              variant="h3"
+              component="h1"
+              sx={{ fontSize: { xs: '1.75rem', sm: '2.5rem', md: '3rem' } }}
+            >
               {t('title')}
             </Typography>
             <Typography color="text.secondary">{t('subtitle')}</Typography>

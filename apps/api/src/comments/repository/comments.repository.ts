@@ -14,6 +14,8 @@ export interface CreateCommentData {
   text: string;
 }
 
+const escapeLike = (value: string): string => value.replace(/[\\%_]/g, '\\$&');
+
 @Injectable()
 export class CommentsRepository {
   private readonly logger = new Logger(CommentsRepository.name);
@@ -73,6 +75,57 @@ export class CommentsRepository {
       const comment = byId.get(id);
       return comment ? [comment] : [];
     });
+  }
+
+  async searchByText(
+    needle: string,
+    page: number,
+    limit: number,
+  ): Promise<[CommentsEntity[], number]> {
+    const pattern = `%${escapeLike(needle)}%`;
+    this.logger.debug(
+      `Fallback DB search pattern=${pattern} page=${String(page)} limit=${String(limit)}`,
+    );
+
+    return await this.commentsRepository
+      .createQueryBuilder('comment')
+      .leftJoinAndSelect('comment.user', 'user')
+      .leftJoinAndSelect('comment.attachments', 'attachments')
+      .where(
+        "regexp_replace(comment.text, '<[^>]+>', ' ', 'g') ILIKE :pattern ESCAPE '\\' OR user.fullName ILIKE :pattern ESCAPE '\\'",
+        { pattern },
+      )
+      .orderBy('comment.createdAt', 'DESC')
+      .addOrderBy('comment.id', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+  }
+
+  async findBatchForIndex(offset: number, limit: number): Promise<CommentsEntity[]> {
+    return await this.commentsRepository.find({
+      relations: { user: true },
+      order: { createdAt: 'ASC', id: 'ASC' },
+      skip: offset,
+      take: limit,
+    });
+  }
+
+  async countRepliesByRootIds(rootIds: string[]): Promise<Map<string, number>> {
+    if (rootIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.commentsRepository
+      .createQueryBuilder('comment')
+      .select('comment.rootId', 'rootId')
+      .addSelect('COUNT(comment.id)', 'count')
+      .where('comment.rootId IN (:...rootIds)', { rootIds })
+      .andWhere('comment.parentId IS NOT NULL')
+      .groupBy('comment.rootId')
+      .getRawMany<{ rootId: string; count: string }>();
+
+    return new Map(rows.map((row) => [row.rootId, Number(row.count)]));
   }
 
   async create(comment: CreateCommentData, manager: EntityManager): Promise<CommentsEntity> {
