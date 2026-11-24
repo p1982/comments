@@ -161,6 +161,19 @@ describe('AuthService', () => {
       expect(tokenService.verifyToken).toHaveBeenCalledWith('refresh-cookie');
     });
 
+    it('rejects when an access token is submitted to refresh', async () => {
+      tokenService.verifyToken.mockResolvedValue({
+        id: 'user-1',
+        email: 'auth@example.com',
+        type: 'access',
+      });
+
+      await expect(service.refresh('access-cookie')).rejects.toThrow(
+        new UnauthorizedException(ERROR_MESSAGES.unauthorized),
+      );
+      expect(userRepository.findById).not.toHaveBeenCalled();
+    });
+
     it('rejects when the refresh user no longer exists', async () => {
       tokenService.verifyToken.mockResolvedValue({ id: 'missing', email: 'a@b.c' });
       userRepository.findById.mockResolvedValue(null);

@@ -29,10 +29,14 @@ export class AuthGuard implements CanActivate {
     const token = request.cookies?.access_token;
 
     if (token) {
-      const payload = this.tokenService.decodeToken(token);
+      const payload = await this.tokenService.verifyToken(token);
+      if (payload.type === 'refresh') {
+        throw new UnauthorizedException(ERROR_MESSAGES.unauthorized);
+      }
+
       const user = await this.usersRepository.findById(payload.id);
 
-      if (!user) {
+      if (!user || user.deletedAt) {
         throw new UnauthorizedException(ERROR_MESSAGES.userNotFound);
       }
 

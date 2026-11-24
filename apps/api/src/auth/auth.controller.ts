@@ -67,10 +67,11 @@ export class AuthController {
   async signUp(
     @Body() signUpDto: SignUpDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req?: Request,
   ): Promise<AuthStatusDto> {
     this.logger.log(`POST signup email=${signUpDto.email}`);
     const tokens = await this.authService.signUp(signUpDto);
-    this.setAuthCookies(res, tokens);
+    this.setAuthCookies(res, tokens, req);
     return { status: 'success' };
   }
 
@@ -89,10 +90,11 @@ export class AuthController {
   async signIn(
     @Body() signInDto: SignInDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req?: Request,
   ): Promise<AuthStatusDto> {
     this.logger.log(`POST signin email=${signInDto.email}`);
     const tokens = await this.authService.signIn(signInDto);
-    this.setAuthCookies(res, tokens);
+    this.setAuthCookies(res, tokens, req);
     return { status: 'success' };
   }
 
@@ -119,20 +121,23 @@ export class AuthController {
       throw new UnauthorizedException(ERROR_MESSAGES.unauthorized);
     }
     const tokens = await this.authService.refresh(refreshToken);
-    this.setAuthCookies(res, tokens);
+    this.setAuthCookies(res, tokens, req);
     return { status: 'success' };
   }
 
-  private setAuthCookies(res: Response, tokens: AuthTokens): void {
+  private setAuthCookies(res: Response, tokens: AuthTokens, req?: Request): void {
     const accessMaxAgeMs = Number(this.configService.get('JWT_ACCESS_MAX_AGE_MS', 15 * 60 * 1000));
     const refreshMaxAgeMs = Number(
       this.configService.get('JWT_REFRESH_MAX_AGE_MS', 7 * 24 * 60 * 60 * 1000),
     );
-    const cookieOptions = buildBaseCookieOptions({
-      corsOrigin: this.configService.get<string>('CORS_ORIGIN'),
-      cookieSameSite: this.configService.get<string>('COOKIE_SAME_SITE'),
-      cookieSecure: this.configService.get<string>('COOKIE_SECURE'),
-    });
+    const cookieOptions = buildBaseCookieOptions(
+      {
+        corsOrigin: this.configService.get<string>('CORS_ORIGIN'),
+        cookieSameSite: this.configService.get<string>('COOKIE_SAME_SITE'),
+        cookieSecure: this.configService.get<string>('COOKIE_SECURE'),
+      },
+      req,
+    );
 
     res.cookie(CookiesName.ACCESS_TOKEN, tokens.accessToken, {
       ...cookieOptions,

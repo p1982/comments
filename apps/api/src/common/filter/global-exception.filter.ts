@@ -28,6 +28,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     const exceptionResponse = exception instanceof HttpException ? exception.getResponse() : null;
 
+    const isProduction = process.env['NODE_ENV'] === 'production';
     const message =
       typeof exceptionResponse === 'string'
         ? exceptionResponse
@@ -35,7 +36,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
             typeof exceptionResponse === 'object' &&
             'message' in exceptionResponse
           ? (exceptionResponse as { message: string | string[] }).message
-          : exception instanceof Error
+          : !isProduction && exception instanceof Error
             ? exception.message
             : ERROR_MESSAGES.internalServerError;
 

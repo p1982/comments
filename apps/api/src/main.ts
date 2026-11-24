@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import { Transport } from '@nestjs/microservices';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { NextFunction, Request, Response } from 'express';
 import cookieParser from 'cookie-parser';
 import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
 import { IoAdapter } from '@nestjs/platform-socket.io';
@@ -62,7 +63,25 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  app.useStaticAssets(join(process.cwd(), 'apps', 'api', 'assets'), { prefix: '/assets/' });
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (!req.path.startsWith('/assets/')) {
+      res.setHeader('X-Frame-Options', 'DENY');
+    }
+    next();
+  });
+
+  app.useStaticAssets(join(process.cwd(), 'apps', 'api', 'assets'), {
+    prefix: '/assets/',
+    setHeaders: (res: Response, filePath: string) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      if (filePath.toLowerCase().endsWith('.txt')) {
+        res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+      }
+    },
+  });
 
   app.use(
     '/graphql',

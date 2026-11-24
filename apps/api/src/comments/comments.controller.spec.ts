@@ -67,11 +67,14 @@ describe('CommentsController', () => {
     );
   });
 
-  it('passes the text file through', async () => {
+  it('passes the text file through and clears captcha cookie on success', async () => {
     const textFile = { originalname: 'note.txt' } as Express.Multer.File;
+    const clearCookie = jest.fn();
     commentsService.createComment.mockResolvedValue({ id: '1' });
 
-    await controller.createComment(null, {} as RequestWithUser, body, { textFile: [textFile] });
+    await controller.createComment(null, {} as RequestWithUser, body, { textFile: [textFile] }, {
+      clearCookie,
+    } as never);
 
     expect(commentsService.createComment).toHaveBeenCalledWith(
       body,
@@ -79,6 +82,10 @@ describe('CommentsController', () => {
       null,
       undefined,
       textFile,
+    );
+    expect(clearCookie).toHaveBeenCalledWith(
+      'captcha',
+      expect.objectContaining({ httpOnly: true, path: '/' }),
     );
   });
 

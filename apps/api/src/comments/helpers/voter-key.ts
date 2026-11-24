@@ -1,4 +1,4 @@
-import type { CookieOptions } from 'express';
+import type { CookieOptions, Request } from 'express';
 
 import { buildBaseCookieOptions, type CookieSecurityEnv } from '@app/common/cookies/cookie-options';
 import type { UsersEntity } from '@app/users/entity/users.entity';
@@ -30,9 +30,13 @@ export const resolveVoterKey = (
  * Builds cookie options for the anonymous `voter_id` httpOnly cookie (1-year TTL).
  *
  * @param env Optional cookie security env override (defaults to `process.env`).
+ * @param req Optional Express request used to detect HTTPS behind reverse proxies.
  * @returns Express `CookieOptions`.
  */
-export const buildVoterCookieOptions = (env?: CookieSecurityEnv): CookieOptions => ({
-  ...buildBaseCookieOptions(env),
+export const buildVoterCookieOptions = (
+  env?: CookieSecurityEnv,
+  req?: Partial<Pick<Request, 'secure' | 'headers'>>,
+): CookieOptions => ({
+  ...buildBaseCookieOptions(env, req),
   maxAge: VOTER_COOKIE_MAX_AGE_MS,
 });

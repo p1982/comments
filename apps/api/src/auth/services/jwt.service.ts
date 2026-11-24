@@ -6,6 +6,7 @@ import { ERROR_MESSAGES } from '@app/common/filter/error-messages';
 export interface TokenPayload {
   id: string;
   email: string;
+  type?: 'access' | 'refresh';
 }
 
 @Injectable()
@@ -20,7 +21,6 @@ export class TokenService {
   }
 
   async verifyToken(token: string, options?: { secret?: string }): Promise<TokenPayload> {
-    this.logger.debug(token);
     try {
       return await this.jwtService.verifyAsync(token, options);
     } catch {
@@ -30,7 +30,6 @@ export class TokenService {
   }
 
   decodeToken(token: string): TokenPayload {
-    this.logger.debug(token);
     return this.jwtService.decode<TokenPayload>(token);
   }
 }
