@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBody,
+  ApiConsumes,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -86,6 +87,7 @@ export class CommentsController {
     ].join(' '),
   })
   @ApiBody({ type: CreateCommentDto })
+  @ApiConsumes('multipart/form-data')
   @ApiCreatedResponse({
     type: CommentResponseDto,
     description:
@@ -201,6 +203,8 @@ export class CommentsController {
   @Post(`:id${ENDPOINTS.VOTE}`)
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
+  @ApiCookieAuth(CookiesName.ACCESS_TOKEN)
+  @ApiCookieAuth(CookiesName.VOTER_ID)
   @ApiOperation({
     summary: 'Vote on a comment (like / dislike)',
     description:

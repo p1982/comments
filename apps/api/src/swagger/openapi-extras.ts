@@ -1,4 +1,4 @@
-import { CookiesName, WS_COMMENT_CREATED } from '@comments/shared';
+import { CookiesName, WS_COMMENT_CREATED, WS_COMMENT_VOTED } from '@comments/shared';
 
 const graphqlQueryExamples = {
   health: {
@@ -48,7 +48,7 @@ const graphqlQueryExamples = {
     },
   },
   searchComments: {
-    summary: 'Search comments via Elasticsearch',
+    summary: 'Search comments via Elasticsearch (with PostgreSQL ILIKE fallback)',
     value: {
       query: `query SearchComments($q: String!, $page: Float, $limit: Float) {
   searchComments(q: $q, page: $page, limit: $limit) {
@@ -59,6 +59,17 @@ const graphqlQueryExamples = {
       variables: { q: 'nestjs', page: 1, limit: 25 },
     },
   },
+  voteComment: {
+    summary: 'Toggle like (+1) or dislike (-1) on a comment',
+    value: {
+      query: `mutation VoteComment($commentId: String!, $value: Int!) {
+  voteComment(commentId: $commentId, value: $value) {
+    commentId votesScore userVote
+  }
+}`,
+      variables: { commentId: '3f1c0b4e-8a2d-4c5b-9e1f-6a7b8c9d0e1f', value: 1 },
+    },
+  },
 };
 
 export const openApiExtraPaths = {
@@ -67,15 +78,19 @@ export const openApiExtraPaths = {
       tags: ['graphql'],
       summary: 'GraphQL HTTP endpoint',
       description: [
-        'Single HTTP entry for GraphQL. Playground is enabled outside production at `/graphql`.',
+        'Single HTTP entry for GraphQL. Apollo Playground and introspection are enabled at `/graphql` by default (set `GRAPHQL_PLAYGROUND=false` to disable).',
         '',
         '**Queries:** `health`, `comments`, `commentChildren`, `searchComments`',
-        '**Mutations:** `createComment` (optional `access_token` cookie; captcha cookie required by business rules)',
+        '**Mutations:** `createComment` (optional `access_token` cookie; `captcha` cookie required), `voteComment` (`+1` / `-1` toggle; uses `access_token` or guest `voter_id` cookie)',
         '**Uploads:** `image` / `textFile` via `graphql-upload` multipart',
         '**Write path:** `createComment` commits comment + outbox in one TX and bumps list cache; WS / ES follow via the outbox publisher (async)',
         '**Subscriptions transport:** `graphql-ws` is enabled on the same GraphQL server',
       ].join('\n'),
-      security: [{ [CookiesName.ACCESS_TOKEN]: [] }, { [CookiesName.CAPTCHA]: [] }],
+      security: [
+        { [CookiesName.ACCESS_TOKEN]: [] },
+        { [CookiesName.CAPTCHA]: [] },
+        { [CookiesName.VOTER_ID]: [] },
+      ],
       requestBody: {
         required: true,
         content: {
@@ -149,9 +164,10 @@ export const openApiExtraPaths = {
         'Default Engine.IO path is `/socket.io`.',
         '',
         '**Server → client events**',
-        `- \`${WS_COMMENT_CREATED}\` — payload matches REST comment response (new comment broadcast)`,
+        `- \`${WS_COMMENT_CREATED}\` — payload matches REST comment response (new comment and async processed image broadcast)`,
+        `- \`${WS_COMMENT_VOTED}\` — payload \`{ commentId, rootId, votesScore }\` (live upvote/downvote score update)`,
         '',
-        'No client → server comment commands; the gateway broadcasts after the outbox publisher emits `comment.created` (shortly after HTTP/GraphQL create returns).',
+        'No client → server comment commands; the gateway broadcasts `comment.created` via the outbox publisher / image processor and `comment.voted` after vote updates.',
       ].join('\n'),
       parameters: [
         {
