@@ -3,7 +3,7 @@ import type { AxiosResponse } from 'axios';
 import type { CommentAttachments, CommentResponse, CommentsResult } from '@comments/shared';
 import commentsService from '@/api/services/comments.service';
 
-import useCommentsStore, { mergeComment } from './comments.store';
+import useCommentsStore, { mergeComment, resetRecentRemoteAttachments } from './comments.store';
 
 jest.mock('@/api/services/comments.service', () => ({
   __esModule: true,
@@ -80,6 +80,7 @@ describe('comments.store async image attachment sync', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resetRecentRemoteAttachments();
     resetStore();
   });
 
@@ -146,12 +147,12 @@ describe('comments.store async image attachment sync', () => {
     ).toEqual([photo]);
   });
 
-  it('fetchChildrenComments does not erase an image attachment already received via WS', async () => {
+  it('fetchChildrenComments does not erase an image attachment just received via WS', async () => {
     const photo = makeAttachment({ id: 'att-3', url: '/assets/att-3.jpeg' });
-    const replyWithPhoto = makeComment({
+    const replyPending = makeComment({
       id: 'reply-3',
       parentId: 'reply-1',
-      attachments: [photo],
+      attachments: [],
     });
 
     useCommentsStore.setState({
@@ -160,15 +161,26 @@ describe('comments.store async image attachment sync', () => {
       childrenComments: {
         'root-1': {
           rootId: 'root-1',
-          commentsIds: ['reply-3'],
-          comments: { 'reply-3': replyWithPhoto },
+          commentsIds: ['reply-1', 'reply-3'],
+          comments: {
+            'reply-1': makeComment({ id: 'reply-1', parentId: 'root-1' }),
+            'reply-3': replyPending,
+          },
         },
       },
     });
 
+    useCommentsStore.getState().applyRemoteComment({
+      ...replyPending,
+      attachments: [photo],
+    });
+
     getCommentByIdRootMock.mockResolvedValue(
       axiosOk<CommentsResult>({
-        data: [makeComment({ id: 'reply-3', parentId: 'reply-1', attachments: [] })],
+        data: [
+          makeComment({ id: 'reply-1', parentId: 'root-1' }),
+          makeComment({ id: 'reply-3', parentId: 'reply-1', attachments: [] }),
+        ],
         status: 'success',
         message: 'ok',
       }),
@@ -179,6 +191,42 @@ describe('comments.store async image attachment sync', () => {
     expect(
       useCommentsStore.getState().childrenComments['root-1']?.comments['reply-3']?.attachments,
     ).toEqual([photo]);
+  });
+
+  it('fetchChildrenComments drops attachments that were deleted in DB on normal refresh', async () => {
+    const stalePhoto = makeAttachment({ id: 'att-old', url: '/assets/att-old.jpeg' });
+
+    useCommentsStore.setState({
+      comments: { 'root-1': makeComment({ id: 'root-1' }) },
+      commentsIds: ['root-1'],
+      childrenComments: {
+        'root-1': {
+          rootId: 'root-1',
+          commentsIds: ['reply-old'],
+          comments: {
+            'reply-old': makeComment({
+              id: 'reply-old',
+              parentId: 'root-1',
+              attachments: [stalePhoto],
+            }),
+          },
+        },
+      },
+    });
+
+    getCommentByIdRootMock.mockResolvedValue(
+      axiosOk<CommentsResult>({
+        data: [makeComment({ id: 'reply-old', parentId: 'root-1', attachments: [] })],
+        status: 'success',
+        message: 'ok',
+      }),
+    );
+
+    await useCommentsStore.getState().fetchChildrenComments('root-1');
+
+    expect(
+      useCommentsStore.getState().childrenComments['root-1']?.comments['reply-old']?.attachments,
+    ).toEqual([]);
   });
 
   it('createComment schedules silent fallback sync when an uploaded reply image is not ready yet', async () => {
