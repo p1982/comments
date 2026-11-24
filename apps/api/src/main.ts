@@ -96,10 +96,10 @@ async function bootstrap() {
     .setDescription(
       [
         `REST under \`/api/v${apiVersion}\`.`,
-        'GraphQL at `/graphql` (playground outside production; graphql-ws subscriptions enabled).',
-        'Realtime comments via Socket.IO (`/socket.io`, event `comment.created` after outbox publish).',
+        'GraphQL at `/graphql` (Apollo Playground enabled unless `GRAPHQL_PLAYGROUND=false`; graphql-ws subscriptions enabled).',
+        'Realtime updates via Socket.IO (`/socket.io`, events `comment.created` and `comment.voted`).',
         'Create writes through a transactional outbox so list/search/WS side effects do not block the HTTP response.',
-        'JWT access/refresh and captcha are httpOnly cookies — nothing in localStorage.',
+        'JWT access/refresh, captcha, and guest voter_id are httpOnly cookies — nothing in localStorage.',
       ].join(' '),
     )
     .setVersion(apiVersion)
@@ -114,6 +114,7 @@ async function bootstrap() {
       CookiesName.REFRESH_TOKEN,
     )
     .addCookieAuth(CookiesName.CAPTCHA, { type: 'apiKey', in: 'cookie' }, CookiesName.CAPTCHA)
+    .addCookieAuth(CookiesName.VOTER_ID, { type: 'apiKey', in: 'cookie' }, CookiesName.VOTER_ID)
     .build();
   const document = mergeOpenApiExtras(SwaggerModule.createDocument(app, swaggerConfig));
   SwaggerModule.setup('docs', app, document, { useGlobalPrefix: true });
