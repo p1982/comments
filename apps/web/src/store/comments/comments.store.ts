@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import type {
+  CommentAttachments,
   CommentResponse,
   CommentSortField,
   CommentSortOrder,
@@ -21,6 +22,10 @@ interface ChildrenCommentsState {
   comments: Record<string, CommentResponse>;
   commentsIds: string[];
   rootId: string | null;
+}
+
+interface FetchOptions {
+  silent?: boolean;
 }
 
 interface CommentsState {
@@ -43,8 +48,8 @@ interface CommentsState {
   expandedRootIds: Record<string, boolean>;
   error: string | null;
   commentTarget: CommentTarget | null;
-  fetchComments: (query?: GetCommentsQuery) => Promise<void>;
-  fetchChildrenComments: (rootId: string) => Promise<void>;
+  fetchComments: (query?: GetCommentsQuery, options?: FetchOptions) => Promise<void>;
+  fetchChildrenComments: (rootId: string, options?: FetchOptions) => Promise<void>;
   setRootExpanded: (rootId: string, expanded: boolean) => void;
   createComment: (comment: CommentsSchema, image?: File, textFile?: File) => Promise<void>;
   openRootForm: () => void;
@@ -63,6 +68,84 @@ interface CommentTarget {
   rootId: string | null;
   initialText?: string;
 }
+
+const IMAGE_SYNC_DELAYS_MS = [1000, 2500] as const;
+
+const mergeAttachments = (
+  existing: CommentAttachments[] | undefined,
+  incoming: CommentAttachments[] | undefined,
+): CommentAttachments[] => {
+  const next = Array.isArray(incoming) ? [...incoming] : [];
+  if (!Array.isArray(existing) || existing.length === 0) {
+    return next;
+  }
+  const seen = new Set(next.map((item) => item.id));
+  for (const item of existing) {
+    if (!seen.has(item.id)) {
+      next.push(item);
+      seen.add(item.id);
+    }
+  }
+  return next;
+};
+
+export const mergeComment = (
+  existing: CommentResponse | undefined,
+  incoming: CommentResponse,
+  options?: { preserveUserState?: boolean },
+): CommentResponse => {
+  if (!existing) {
+    return incoming;
+  }
+
+  const attachments = mergeAttachments(existing.attachments, incoming.attachments);
+  if (options?.preserveUserState) {
+    return {
+      ...existing,
+      ...incoming,
+      attachments,
+      repliesCount: Math.max(existing.repliesCount ?? 0, incoming.repliesCount ?? 0),
+      votesScore: incoming.votesScore ?? existing.votesScore ?? 0,
+      userVote: existing.userVote ?? incoming.userVote ?? 0,
+    };
+  }
+
+  return {
+    ...incoming,
+    attachments,
+  };
+};
+
+const mergeCommentsMap = (
+  existing: Record<string, CommentResponse> | undefined,
+  incoming: Record<string, CommentResponse>,
+): Record<string, CommentResponse> => {
+  if (!existing) {
+    return incoming;
+  }
+  return Object.fromEntries(
+    Object.entries(incoming).map(([id, comment]) => [id, mergeComment(existing[id], comment)]),
+  );
+};
+
+const extractCreatedComment = (payload: unknown): CommentResponse | null => {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  if ('id' in payload && typeof (payload as { id?: unknown }).id === 'string') {
+    return payload as CommentResponse;
+  }
+  if ('data' in payload) {
+    const inner = (payload as { data?: unknown }).data;
+    if (inner && typeof inner === 'object' && 'id' in inner && typeof inner.id === 'string') {
+      return inner as CommentResponse;
+    }
+  }
+  return null;
+};
+
+const hasImageAttachment = (comment: CommentResponse | undefined): boolean =>
+  Boolean(comment?.attachments.some((file) => file.fileType === 'image'));
 
 const extractErrorMessage = (error: unknown, fallback: string): string => {
   if (isAxiosError<{ message?: string | string[] } | undefined>(error)) {
@@ -102,8 +185,9 @@ const useCommentsStore = create<CommentsState>()(
       order: 'desc',
       searchQuery: null,
       commentTarget: null,
-      fetchComments: async (query: GetCommentsQuery = {}) => {
+      fetchComments: async (query: GetCommentsQuery = {}, options?: FetchOptions) => {
         const state = get();
+        const silent = Boolean(options?.silent);
         const nextQuery: CommentsListQuery = {
           page: query.page ?? state.page,
           limit: query.limit ?? state.limit,
@@ -111,13 +195,15 @@ const useCommentsStore = create<CommentsState>()(
           order: query.order ?? state.order,
         };
 
-        set({ isLoading: true, error: null });
+        if (!silent) {
+          set({ isLoading: true, error: null });
+        }
         try {
           const { data } = await commentsService.getComments(nextQuery);
           const [comments, commentsIds] = reduceComments(data.data);
 
-          set({
-            comments,
+          set((current) => ({
+            comments: mergeCommentsMap(current.comments, comments),
             commentsIds,
             page: nextQuery.page,
             limit: nextQuery.limit,
@@ -126,30 +212,38 @@ const useCommentsStore = create<CommentsState>()(
             searchQuery: null,
             total: data.total ?? 0,
             totalPages: data.totalPages ?? 0,
-          });
+          }));
         } catch (error) {
-          const message = extractErrorMessage(error, 'Failed to load comments');
-          set({ error: message });
+          if (!silent) {
+            const message = extractErrorMessage(error, 'Failed to load comments');
+            set({ error: message });
+          }
         } finally {
-          set({ isLoading: false });
+          if (!silent) {
+            set({ isLoading: false });
+          }
         }
       },
 
-      fetchChildrenComments: async (rootId: string) => {
-        set((state) => ({
-          loadingChildrenIds: { ...state.loadingChildrenIds, [rootId]: true },
-          error: null,
-        }));
+      fetchChildrenComments: async (rootId: string, options?: FetchOptions) => {
+        const silent = Boolean(options?.silent);
+        if (!silent) {
+          set((state) => ({
+            loadingChildrenIds: { ...state.loadingChildrenIds, [rootId]: true },
+            error: null,
+          }));
+        }
         try {
           const { data } = await commentsService.getCommentByIdRoot(rootId);
           const [comments, commentsIds] = reduceComments(data.data);
           set((state) => {
             const rootComment = state.comments[rootId];
+            const existingThread = state.childrenComments[rootId];
             return {
               childrenComments: {
                 ...state.childrenComments,
                 [rootId]: {
-                  comments,
+                  comments: mergeCommentsMap(existingThread?.comments, comments),
                   commentsIds,
                   rootId,
                 },
@@ -165,12 +259,16 @@ const useCommentsStore = create<CommentsState>()(
             };
           });
         } catch (error) {
-          const message = extractErrorMessage(error, 'Failed to load comments');
-          set({ error: message });
+          if (!silent) {
+            const message = extractErrorMessage(error, 'Failed to load comments');
+            set({ error: message });
+          }
         } finally {
-          set((state) => ({
-            loadingChildrenIds: omitKey(state.loadingChildrenIds, rootId),
-          }));
+          if (!silent) {
+            set((state) => ({
+              loadingChildrenIds: omitKey(state.loadingChildrenIds, rootId),
+            }));
+          }
         }
       },
       setRootExpanded: (rootId: string, expanded: boolean) => {
@@ -191,13 +289,76 @@ const useCommentsStore = create<CommentsState>()(
           set({ isLoading: true, error: null });
         }
         try {
-          await commentsService.createComment(comment, image, textFile);
+          const response = await commentsService.createComment(comment, image, textFile);
+          const created = extractCreatedComment(response.data);
+
           if (rootId) {
-            await get().fetchChildrenComments(rootId);
+            if (created) {
+              set((state) => {
+                const existingThread = state.childrenComments[rootId];
+                const existingComments = existingThread?.comments ?? {};
+                const existingIds = existingThread?.commentsIds ?? [];
+                const nextIds = existingIds.includes(created.id)
+                  ? existingIds
+                  : [...existingIds, created.id];
+                return {
+                  childrenComments: {
+                    ...state.childrenComments,
+                    [rootId]: {
+                      comments: {
+                        ...existingComments,
+                        [created.id]: mergeComment(existingComments[created.id], created),
+                      },
+                      commentsIds: nextIds,
+                      rootId,
+                    },
+                  },
+                };
+              });
+            }
             get().setRootExpanded(rootId, true);
-            return;
+            await get().fetchChildrenComments(rootId);
+          } else {
+            await get().fetchComments({ page: 1 });
           }
-          await get().fetchComments({ page: 1 });
+
+          if (image && created) {
+            const scheduleImageCheck = (attempt: number) => {
+              const delay = IMAGE_SYNC_DELAYS_MS[attempt];
+              if (delay === undefined) {
+                return;
+              }
+              setTimeout(() => {
+                const currentState = get();
+                const currentComment = rootId
+                  ? currentState.childrenComments[rootId]?.comments[created.id]
+                  : currentState.comments[created.id];
+                if (hasImageAttachment(currentComment)) {
+                  return;
+                }
+                const syncPromise = rootId
+                  ? get().fetchChildrenComments(rootId, { silent: true })
+                  : get().fetchComments({ page: get().page }, { silent: true });
+                void syncPromise.finally(() => {
+                  const updatedState = get();
+                  const updatedComment = rootId
+                    ? updatedState.childrenComments[rootId]?.comments[created.id]
+                    : updatedState.comments[created.id];
+                  if (!hasImageAttachment(updatedComment)) {
+                    scheduleImageCheck(attempt + 1);
+                  }
+                });
+              }, delay);
+            };
+
+            const latestState = get();
+            const currentComment = rootId
+              ? latestState.childrenComments[rootId]?.comments[created.id]
+              : latestState.comments[created.id];
+            if (!hasImageAttachment(currentComment)) {
+              scheduleImageCheck(0);
+            }
+          }
         } catch (error) {
           const message = extractErrorMessage(error, 'Failed to create comment');
           set({ error: message });
@@ -249,11 +410,28 @@ const useCommentsStore = create<CommentsState>()(
       },
       applyRemoteComment: (comment: CommentResponse) => {
         const state = get();
+        const existingBookmark = state.bookmarkedComments[comment.id];
+        const bookmarkPatch = existingBookmark
+          ? {
+              bookmarkedComments: {
+                ...state.bookmarkedComments,
+                [comment.id]: mergeComment(existingBookmark, comment, {
+                  preserveUserState: true,
+                }),
+              },
+            }
+          : {};
 
         if (comment.parentId === null) {
           if (state.comments[comment.id]) {
             set({
-              comments: { ...state.comments, [comment.id]: comment },
+              comments: {
+                ...state.comments,
+                [comment.id]: mergeComment(state.comments[comment.id], comment, {
+                  preserveUserState: true,
+                }),
+              },
+              ...bookmarkPatch,
             });
             return;
           }
@@ -275,6 +453,7 @@ const useCommentsStore = create<CommentsState>()(
             commentsIds: nextIds,
             total: state.total + 1,
             totalPages: Math.ceil((state.total + 1) / state.limit),
+            ...bookmarkPatch,
           });
           return;
         }
@@ -296,7 +475,10 @@ const useCommentsStore = create<CommentsState>()(
                   repliesCount: (directRoot.repliesCount ?? 0) + 1,
                 },
               },
+              ...bookmarkPatch,
             });
+          } else if (existingBookmark) {
+            set(bookmarkPatch);
           }
           return;
         }
@@ -309,9 +491,15 @@ const useCommentsStore = create<CommentsState>()(
                 ...state.childrenComments,
                 [rootId]: {
                   ...thread,
-                  comments: { ...thread.comments, [comment.id]: comment },
+                  comments: {
+                    ...thread.comments,
+                    [comment.id]: mergeComment(thread.comments[comment.id], comment, {
+                      preserveUserState: true,
+                    }),
+                  },
                 },
               },
+              ...bookmarkPatch,
             });
           }
           return;
@@ -343,6 +531,7 @@ const useCommentsStore = create<CommentsState>()(
                 },
               }
             : {}),
+          ...bookmarkPatch,
         });
       },
       applyRemoteVote: ({ commentId, rootId, votesScore }: CommentVotedEventPayload) => {
