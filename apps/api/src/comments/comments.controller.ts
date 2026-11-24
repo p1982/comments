@@ -209,11 +209,7 @@ export class CommentsController {
     let voterKey = resolveVoterKey(user, request.cookies?.voter_id);
     if (!voterKey) {
       const guestId = crypto.randomUUID();
-      response.cookie(
-        CookiesName.VOTER_ID,
-        guestId,
-        buildVoterCookieOptions(process.env['NODE_ENV'] === 'production'),
-      );
+      response.cookie(CookiesName.VOTER_ID, guestId, buildVoterCookieOptions());
       voterKey = `guest:${guestId}`;
     }
 

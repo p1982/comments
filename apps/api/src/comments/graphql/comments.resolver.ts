@@ -86,11 +86,7 @@ export class CommentResolver {
     let voterKey = resolveVoterKey(user, ctx.req?.cookies?.voter_id);
     if (!voterKey) {
       const guestId = crypto.randomUUID();
-      ctx.res?.cookie(
-        CookiesName.VOTER_ID,
-        guestId,
-        buildVoterCookieOptions(process.env['NODE_ENV'] === 'production'),
-      );
+      ctx.res?.cookie(CookiesName.VOTER_ID, guestId, buildVoterCookieOptions());
       voterKey = `guest:${guestId}`;
     }
     return this.commentsService.voteComment(commentId, parsed.value, voterKey);
